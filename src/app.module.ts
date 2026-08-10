@@ -20,7 +20,6 @@ import { PartnersModule } from './partners/partners.module';
           .default('development'),
         SUPABASE_URL: Joi.string().uri().required(),
         SUPABASE_SERVICE_ROLE_KEY: Joi.string().required(),
-        SUPABASE_JWT_SECRET: Joi.string().required(),
       }),
     }),
     SupabaseModule,
