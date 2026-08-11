@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { PartnerProfile } from './partner-profile.interface';
@@ -18,14 +19,25 @@ import { PartnerProfile } from './partner-profile.interface';
  */
 @Injectable()
 export class PartnersService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async invitePartner(dto: CreatePartnerDto): Promise<PartnerProfile> {
     const client = this.supabaseService.getClient();
+    const frontendUrl = this.configService.get<string>('frontendUrl');
 
     const { data: inviteData, error: inviteError } =
       await client.auth.admin.inviteUserByEmail(dto.email, {
         data: { full_name: dto.fullName },
+        // Sin esto, Supabase usa el Site URL global del proyecto — un solo
+        // valor compartido entre local/Railway/AWS. Con FRONTEND_URL
+        // seteado por entorno, cada deploy manda el link al dominio
+        // correcto sin depender de mantener el Site URL sincronizado.
+        ...(frontendUrl && {
+          redirectTo: `${frontendUrl}/auth/callback`,
+        }),
       });
 
     if (inviteError) {
