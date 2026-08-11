@@ -6,3 +6,10 @@ dist/
 *.log
 coverage/
 .DS_Store
+
+# Terraform (.terraform.lock.hcl SÍ se commitea, fija versiones de providers)
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars
+infra/terraform/crash.log
