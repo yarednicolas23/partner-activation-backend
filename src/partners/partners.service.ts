@@ -65,6 +65,21 @@ export class PartnersService {
     return profile as PartnerProfile;
   }
 
+  async listPartners(): Promise<PartnerProfile[]> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .select('*')
+      .eq('role', 'partner')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    return (data ?? []) as PartnerProfile[];
+  }
+
   async getProfile(userId: string): Promise<PartnerProfile> {
     const { data, error } = await this.supabaseService
       .getClient()

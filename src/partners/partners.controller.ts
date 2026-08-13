@@ -24,4 +24,11 @@ export class PartnersController {
   getOwnProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.partnersService.getProfile(user.id);
   }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  listPartners() {
+    return this.partnersService.listPartners();
+  }
 }

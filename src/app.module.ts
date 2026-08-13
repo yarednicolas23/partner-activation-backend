@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { PartnersModule } from './partners/partners.module';
+import { MilestonesModule } from './milestones/milestones.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PartnersModule } from './partners/partners.module';
     SupabaseModule,
     AuthModule,
     PartnersModule,
+    MilestonesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
