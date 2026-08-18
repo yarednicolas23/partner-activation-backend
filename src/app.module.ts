@@ -25,6 +25,7 @@ import { MilestonesModule } from './milestones/milestones.module';
         AWS_S3_BUCKET: Joi.string().required(),
         AWS_ACCESS_KEY_ID: Joi.string().required(),
         AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+        AWS_SES_FROM_EMAIL: Joi.string().email().required(),
       }),
     }),
     SupabaseModule,

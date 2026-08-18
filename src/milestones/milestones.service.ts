@@ -4,10 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { S3Service } from '../aws/s3.service';
+import { EmailService } from '../email/email.service';
 import {
   EvidenceQueueItem,
   EvidenceStatus,
@@ -25,9 +28,13 @@ import {
  */
 @Injectable()
 export class MilestonesService {
+  private readonly logger = new Logger(MilestonesService.name);
+
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly s3Service: S3Service,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   private get client() {
@@ -82,7 +89,7 @@ export class MilestonesService {
       );
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
-    return this.upsertEvidence(task.id, partnerId, {
+    return this.finalizeEvidenceSubmission(partnerId, task, {
       text_value: textValue,
       file_path: null,
     });
@@ -124,7 +131,7 @@ export class MilestonesService {
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
 
-    return this.upsertEvidence(task.id, partnerId, {
+    return this.finalizeEvidenceSubmission(partnerId, task, {
       text_value: null,
       file_path: filePath,
     });
@@ -135,11 +142,7 @@ export class MilestonesService {
   ): Promise<EvidenceQueueItem[]> {
     let query = this.client
       .from('task_evidence')
-      .select(
-        `id, task_id, partner_id, text_value, file_path, status, review_note, reviewed_by, reviewed_at, submitted_at,
-         task:milestone_tasks(id, milestone_id, order_index, title, description, evidence_type, milestone:milestones(id, order_index, title, description)),
-         partner:profiles!task_evidence_partner_id_fkey(id, email, full_name)`,
-      )
+      .select(this.evidenceQueueSelect)
       .order('submitted_at', { ascending: true });
 
     if (status) {
@@ -151,21 +154,23 @@ export class MilestonesService {
       throw new InternalServerErrorException(error.message);
     }
 
-    return ((data ?? []) as any[]).map((row) => ({
-      id: row.id,
-      task_id: row.task_id,
-      partner_id: row.partner_id,
-      text_value: row.text_value,
-      file_path: row.file_path,
-      status: row.status,
-      review_note: row.review_note,
-      reviewed_by: row.reviewed_by,
-      reviewed_at: row.reviewed_at,
-      submitted_at: row.submitted_at,
-      task: row.task,
-      milestone: row.task?.milestone,
-      partner: row.partner,
-    }));
+    return this.mapEvidenceQueueRows(data ?? []);
+  }
+
+  async listPartnerEvidenceHistory(
+    partnerId: string,
+  ): Promise<EvidenceQueueItem[]> {
+    const { data, error } = await this.client
+      .from('task_evidence')
+      .select(this.evidenceQueueSelect)
+      .eq('partner_id', partnerId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    return this.mapEvidenceQueueRows(data ?? []);
   }
 
   async getEvidenceFileUrl(evidenceId: string): Promise<string> {
@@ -188,6 +193,12 @@ export class MilestonesService {
     status: 'approved' | 'rejected',
     note?: string,
   ): Promise<TaskEvidence> {
+    const { data: existing } = await this.client
+      .from('task_evidence')
+      .select('status')
+      .eq('id', evidenceId)
+      .single();
+
     const { data, error } = await this.client
       .from('task_evidence')
       .update({
@@ -204,10 +215,171 @@ export class MilestonesService {
       throw new NotFoundException('Evidência não encontrada');
     }
 
-    return data as TaskEvidence;
+    const evidence = data as TaskEvidence;
+
+    // Solo dispara el mail de milestone completo en la transición a
+    // "approved" — evita reenviarlo si algo ya aprobado se re-guarda.
+    if (status === 'approved' && existing?.status !== 'approved') {
+      this.checkMilestoneCompletion(
+        evidence.partner_id,
+        evidence.task_id,
+      ).catch((error) =>
+        this.logger.error(
+          `Falha ao verificar conclusão de milestone: ${(error as Error).message}`,
+        ),
+      );
+    }
+
+    return evidence;
   }
 
   // --- helpers ---
+
+  private readonly evidenceQueueSelect = `id, task_id, partner_id, text_value, file_path, status, review_note, reviewed_by, reviewed_at, submitted_at,
+     task:milestone_tasks(id, milestone_id, order_index, title, description, evidence_type, milestone:milestones(id, order_index, title, description)),
+     partner:profiles!task_evidence_partner_id_fkey(id, email, full_name)`;
+
+  private mapEvidenceQueueRows(rows: any[]): EvidenceQueueItem[] {
+    return rows.map((row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      partner_id: row.partner_id,
+      text_value: row.text_value,
+      file_path: row.file_path,
+      status: row.status,
+      review_note: row.review_note,
+      reviewed_by: row.reviewed_by,
+      reviewed_at: row.reviewed_at,
+      submitted_at: row.submitted_at,
+      task: row.task,
+      milestone: row.task?.milestone,
+      partner: row.partner,
+    }));
+  }
+
+  private async finalizeEvidenceSubmission(
+    partnerId: string,
+    task: MilestoneTask,
+    values: { text_value: string | null; file_path: string | null },
+  ): Promise<TaskEvidence> {
+    const evidence = await this.upsertEvidence(task.id, partnerId, values);
+    this.notifyEvidenceSubmitted(partnerId, task).catch((error) =>
+      this.logger.error(
+        `Falha ao notificar envio de evidência: ${(error as Error).message}`,
+      ),
+    );
+    return evidence;
+  }
+
+  private async getNotificationRecipients(partnerId: string) {
+    const [{ data: partner }, { data: admins }] = await Promise.all([
+      this.client
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', partnerId)
+        .single(),
+      this.client.from('profiles').select('email').eq('role', 'admin'),
+    ]);
+
+    return {
+      partnerEmail: partner?.email ?? null,
+      partnerName: partner?.full_name ?? null,
+      adminEmails: ((admins ?? []) as { email: string }[]).map((a) => a.email),
+    };
+  }
+
+  private async notifyEvidenceSubmitted(
+    partnerId: string,
+    task: MilestoneTask,
+  ) {
+    const { partnerEmail, partnerName, adminEmails } =
+      await this.getNotificationRecipients(partnerId);
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const greeting = partnerName ? `Olá, ${partnerName}` : 'Olá';
+
+    if (partnerEmail) {
+      await this.emailService.send({
+        to: [partnerEmail],
+        subject: 'Evidência recebida — Partner Activation Program',
+        html: `<p>${greeting},</p><p>Recebemos sua evidência para a tarefa <strong>${task.title}</strong>. Nossa equipe vai revisar em breve.</p>${
+          frontendUrl
+            ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
+            : ''
+        }`,
+      });
+    }
+
+    if (adminEmails.length > 0) {
+      await this.emailService.send({
+        to: adminEmails,
+        subject: 'Nova evidência para revisar',
+        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} enviou evidência para a tarefa <strong>${task.title}</strong>.</p>${
+          frontendUrl
+            ? `<p><a href="${frontendUrl}/admin/evidence">Revisar agora</a></p>`
+            : ''
+        }`,
+      });
+    }
+  }
+
+  private async checkMilestoneCompletion(partnerId: string, taskId: string) {
+    const task = await this.getTaskOrThrow(taskId);
+    const { milestones, tasksByMilestone, evidenceByTask } =
+      await this.loadMilestoneData(partnerId);
+    const milestone = milestones.find((m) => m.id === task.milestone_id);
+    if (!milestone) {
+      return;
+    }
+
+    const requiredTasks = (tasksByMilestone.get(milestone.id) ?? []).filter(
+      (t) => t.evidence_type !== 'none',
+    );
+    const allApproved =
+      requiredTasks.length > 0 &&
+      requiredTasks.every(
+        (t) => evidenceByTask.get(t.id)?.status === 'approved',
+      );
+
+    if (!allApproved) {
+      return;
+    }
+
+    await this.notifyMilestoneCompleted(partnerId, milestone);
+  }
+
+  private async notifyMilestoneCompleted(
+    partnerId: string,
+    milestone: Milestone,
+  ) {
+    const { partnerEmail, partnerName, adminEmails } =
+      await this.getNotificationRecipients(partnerId);
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const greeting = partnerName ? `Parabéns, ${partnerName}` : 'Parabéns';
+
+    if (partnerEmail) {
+      await this.emailService.send({
+        to: [partnerEmail],
+        subject: `Milestone concluído: ${milestone.title}`,
+        html: `<p>${greeting}!</p><p>Você concluiu o milestone <strong>${milestone.title}</strong>.</p>${
+          frontendUrl
+            ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
+            : ''
+        }`,
+      });
+    }
+
+    if (adminEmails.length > 0) {
+      await this.emailService.send({
+        to: adminEmails,
+        subject: `Parceiro concluiu milestone: ${milestone.title}`,
+        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu o milestone <strong>${milestone.title}</strong>.</p>${
+          frontendUrl
+            ? `<p><a href="${frontendUrl}/admin/evidence">Ver detalhes</a></p>`
+            : ''
+        }`,
+      });
+    }
+  }
 
   private async getTaskOrThrow(taskId: string): Promise<MilestoneTask> {
     const { data, error } = await this.client

@@ -51,6 +51,22 @@ variable "memory" {
   default     = "0.5 GB"
 }
 
+variable "ses_from_email" {
+  description = "Remitente verificado para notificaciones por email — placeholder hasta que Kaspersky confirme un dominio propio."
+  type        = string
+  default     = "yarednicolas@gmail.com"
+}
+
+variable "ses_test_recipients" {
+  description = "Mientras SES esté en sandbox, todo destinatario también necesita verificarse — cuentas de test ya usadas en la sesión."
+  type        = list(string)
+  default = [
+    "yarednicolas@gmail.com",
+    "yarednicolas@hotmail.com",
+    "hwllysc@gmail.com",
+  ]
+}
+
 variable "evidence_bucket_cors_origins" {
   description = "Orígenes del frontend autorizados a subir evidencias directo al bucket S3 (presigned POST)."
   type        = list(string)
