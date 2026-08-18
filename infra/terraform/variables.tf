@@ -50,3 +50,12 @@ variable "memory" {
   type        = string
   default     = "0.5 GB"
 }
+
+variable "evidence_bucket_cors_origins" {
+  description = "Orígenes del frontend autorizados a subir evidencias directo al bucket S3 (presigned POST)."
+  type        = list(string)
+  default = [
+    "http://localhost:3000",
+    "https://partner-activation-frontend-production.up.railway.app",
+  ]
+}

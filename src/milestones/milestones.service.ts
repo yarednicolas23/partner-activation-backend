@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -6,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { S3Service } from '../aws/s3.service';
 import {
   EvidenceQueueItem,
   EvidenceStatus,
@@ -16,8 +18,6 @@ import {
   TaskWithEvidence,
 } from './milestone.interfaces';
 
-const EVIDENCE_BUCKET = 'evidence';
-
 /**
  * Desbloqueo secuencial de milestones (brief §4: "each milestone depends on
  * the completion of the previous one"), calculado en el momento a partir de
@@ -25,7 +25,10 @@ const EVIDENCE_BUCKET = 'evidence';
  */
 @Injectable()
 export class MilestonesService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   private get client() {
     return this.supabaseService.getClient();
@@ -85,29 +88,45 @@ export class MilestonesService {
     });
   }
 
-  async submitFileEvidence(
+  async createFileUploadPost(
     partnerId: string,
     taskId: string,
-    file: Express.Multer.File,
-  ): Promise<TaskEvidence> {
+    contentType: string,
+  ) {
     const task = await this.getTaskOrThrow(taskId);
     if (task.evidence_type !== 'file') {
       throw new BadRequestException('Esta tarefa não aceita upload de arquivo');
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
 
-    const path = `${partnerId}/${taskId}/${Date.now()}-${file.originalname}`;
-    const { error: uploadError } = await this.client.storage
-      .from(EVIDENCE_BUCKET)
-      .upload(path, file.buffer, { contentType: file.mimetype, upsert: true });
+    const filePath = `${partnerId}/${taskId}/${Date.now()}-${randomUUID()}`;
+    const { url, fields } = await this.s3Service.createEvidenceUploadPost(
+      filePath,
+      contentType,
+    );
 
-    if (uploadError) {
-      throw new InternalServerErrorException(uploadError.message);
+    return { url, fields, filePath };
+  }
+
+  async submitFileEvidence(
+    partnerId: string,
+    taskId: string,
+    filePath: string,
+  ): Promise<TaskEvidence> {
+    const task = await this.getTaskOrThrow(taskId);
+    if (task.evidence_type !== 'file') {
+      throw new BadRequestException('Esta tarefa não aceita upload de arquivo');
     }
+    // filePath debe ser el que este mesmo backend gerou em createFileUploadPost
+    // (prefixado por partnerId/taskId) — não aceita um path arbitrário do cliente.
+    if (!filePath.startsWith(`${partnerId}/${taskId}/`)) {
+      throw new BadRequestException('filePath inválido');
+    }
+    await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
 
     return this.upsertEvidence(task.id, partnerId, {
       text_value: null,
-      file_path: path,
+      file_path: filePath,
     });
   }
 
@@ -160,15 +179,7 @@ export class MilestonesService {
       throw new NotFoundException('Arquivo não encontrado');
     }
 
-    const { data, error: signError } = await this.client.storage
-      .from(EVIDENCE_BUCKET)
-      .createSignedUrl(evidence.file_path, 300);
-
-    if (signError || !data) {
-      throw new InternalServerErrorException(signError?.message);
-    }
-
-    return data.signedUrl;
+    return this.s3Service.getSignedDownloadUrl(evidence.file_path);
   }
 
   async reviewEvidence(

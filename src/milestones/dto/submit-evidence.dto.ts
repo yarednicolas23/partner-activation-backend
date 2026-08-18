@@ -5,4 +5,9 @@ export class SubmitEvidenceDto {
   @IsString()
   @MinLength(1)
   textValue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  filePath?: string;
 }

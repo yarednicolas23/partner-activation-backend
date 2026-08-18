@@ -7,11 +7,8 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -20,6 +17,7 @@ import { Role } from '../auth/roles.enum';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { MilestonesService } from './milestones.service';
 import { SubmitEvidenceDto } from './dto/submit-evidence.dto';
+import { CreateUploadUrlDto } from './dto/create-upload-url.dto';
 import { ReviewEvidenceDto } from './dto/review-evidence.dto';
 import type { EvidenceStatus } from './milestone.interfaces';
 
@@ -33,20 +31,36 @@ export class MilestonesController {
     return this.milestonesService.getPartnerView(user.id);
   }
 
+  @Post('milestones/tasks/:taskId/evidence/upload-url')
+  @UseGuards(JwtAuthGuard)
+  createUploadUrl(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('taskId') taskId: string,
+    @Body() dto: CreateUploadUrlDto,
+  ) {
+    return this.milestonesService.createFileUploadPost(
+      user.id,
+      taskId,
+      dto.contentType,
+    );
+  }
+
   @Post('milestones/tasks/:taskId/evidence')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
   submitEvidence(
     @CurrentUser() user: AuthenticatedUser,
     @Param('taskId') taskId: string,
     @Body() dto: SubmitEvidenceDto,
-    @UploadedFile() file?: Express.Multer.File,
   ) {
-    if (file) {
-      return this.milestonesService.submitFileEvidence(user.id, taskId, file);
+    if (dto.filePath) {
+      return this.milestonesService.submitFileEvidence(
+        user.id,
+        taskId,
+        dto.filePath,
+      );
     }
     if (!dto.textValue) {
-      throw new BadRequestException('Envie textValue ou um arquivo');
+      throw new BadRequestException('Envie textValue ou filePath');
     }
     return this.milestonesService.submitTextEvidence(
       user.id,

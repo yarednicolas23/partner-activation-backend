@@ -15,3 +15,16 @@ output "apprunner_service_arn" {
 output "aws_region" {
   value = var.aws_region
 }
+
+output "evidence_bucket_name" {
+  value = aws_s3_bucket.evidence.bucket
+}
+
+output "backend_s3_access_key_id" {
+  value = aws_iam_access_key.backend_s3.id
+}
+
+output "backend_s3_secret_access_key" {
+  value     = aws_iam_access_key.backend_s3.secret
+  sensitive = true
+}
