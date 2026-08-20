@@ -28,7 +28,14 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
+      // Supabase-js sin tipos de Database generados (`supabase gen types`)
+      // devuelve `any` en casi todo `.select()` con joins — hasta que se
+      // generen esos tipos, estas reglas solo pueden ser warn sin bloquear
+      // cada PR por algo que no es un bug real.
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
