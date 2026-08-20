@@ -41,6 +41,22 @@ export class MilestonesService {
     return this.supabaseService.getClient();
   }
 
+  /**
+   * Lista plana de milestones (sin lógica de desbloqueo) — usada por el
+   * admin para elegir a qué milestone se asocia un reward.
+   */
+  async listAllMilestones(): Promise<Milestone[]> {
+    const { data, error } = await this.client
+      .from('milestones')
+      .select('*')
+      .order('order_index');
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    return (data ?? []) as Milestone[];
+  }
+
   async getPartnerView(partnerId: string): Promise<MilestoneView[]> {
     const { milestones, tasksByMilestone, evidenceByTask } =
       await this.loadMilestoneData(partnerId);
@@ -322,6 +338,42 @@ export class MilestonesService {
     }
   }
 
+  /**
+   * Milestones que un partner ya completó (todas las tasks con evidencia
+   * requerida aprobadas) — usado por RewardsService para calcular
+   * elegibilidad de rewards sin duplicar el motor de milestones.
+   */
+  async getCompletedMilestoneIds(partnerId: string): Promise<Set<string>> {
+    const { milestones, tasksByMilestone, evidenceByTask } =
+      await this.loadMilestoneData(partnerId);
+
+    const completed = new Set<string>();
+    for (const milestone of milestones) {
+      if (
+        this.isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)
+      ) {
+        completed.add(milestone.id);
+      }
+    }
+    return completed;
+  }
+
+  private isMilestoneComplete(
+    milestoneId: string,
+    tasksByMilestone: Map<string, MilestoneTask[]>,
+    evidenceByTask: Map<string, TaskEvidence>,
+  ): boolean {
+    const requiredTasks = (tasksByMilestone.get(milestoneId) ?? []).filter(
+      (t) => t.evidence_type !== 'none',
+    );
+    return (
+      requiredTasks.length > 0 &&
+      requiredTasks.every(
+        (t) => evidenceByTask.get(t.id)?.status === 'approved',
+      )
+    );
+  }
+
   private async checkMilestoneCompletion(partnerId: string, taskId: string) {
     const task = await this.getTaskOrThrow(taskId);
     const { milestones, tasksByMilestone, evidenceByTask } =
@@ -331,16 +383,9 @@ export class MilestonesService {
       return;
     }
 
-    const requiredTasks = (tasksByMilestone.get(milestone.id) ?? []).filter(
-      (t) => t.evidence_type !== 'none',
-    );
-    const allApproved =
-      requiredTasks.length > 0 &&
-      requiredTasks.every(
-        (t) => evidenceByTask.get(t.id)?.status === 'approved',
-      );
-
-    if (!allApproved) {
+    if (
+      !this.isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)
+    ) {
       return;
     }
 

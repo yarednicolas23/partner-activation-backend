@@ -18,8 +18,12 @@ resource "aws_apprunner_service" "backend" {
         port = "3000"
 
         runtime_environment_variables = {
-          NODE_ENV = "production"
-          PORT     = "3000"
+          NODE_ENV           = "production"
+          PORT               = "3000"
+          FRONTEND_URL       = var.frontend_url
+          AWS_REGION         = var.aws_region
+          AWS_S3_BUCKET      = aws_s3_bucket.evidence.bucket
+          AWS_SES_FROM_EMAIL = var.ses_from_email
         }
 
         runtime_environment_secrets = {
@@ -31,9 +35,9 @@ resource "aws_apprunner_service" "backend" {
   }
 
   instance_configuration {
-    cpu                = var.cpu
-    memory             = var.memory
-    instance_role_arn  = aws_iam_role.apprunner_instance.arn
+    cpu               = var.cpu
+    memory            = var.memory
+    instance_role_arn = aws_iam_role.apprunner_instance.arn
   }
 
   # GET / no requiere auth (app.controller.ts) — sirve tal cual de health check.

@@ -8,6 +8,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { PartnersModule } from './partners/partners.module';
 import { MilestonesModule } from './milestones/milestones.module';
+import { RewardsModule } from './rewards/rewards.module';
 
 @Module({
   imports: [
@@ -23,8 +24,11 @@ import { MilestonesModule } from './milestones/milestones.module';
         SUPABASE_SERVICE_ROLE_KEY: Joi.string().required(),
         AWS_REGION: Joi.string().required(),
         AWS_S3_BUCKET: Joi.string().required(),
-        AWS_ACCESS_KEY_ID: Joi.string().required(),
-        AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+        // Opcionales: en App Runner el SDK toma credenciales del instance
+        // role (ver infra/terraform/iam.tf) sin necesitar access keys; en
+        // local/Railway siguen viniendo del .env.
+        AWS_ACCESS_KEY_ID: Joi.string().optional(),
+        AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
         AWS_SES_FROM_EMAIL: Joi.string().email().required(),
       }),
     }),
@@ -32,6 +36,7 @@ import { MilestonesModule } from './milestones/milestones.module';
     AuthModule,
     PartnersModule,
     MilestonesModule,
+    RewardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

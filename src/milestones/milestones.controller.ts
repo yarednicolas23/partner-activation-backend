@@ -31,6 +31,13 @@ export class MilestonesController {
     return this.milestonesService.getPartnerView(user.id);
   }
 
+  @Get('milestones/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  listAllMilestones() {
+    return this.milestonesService.listAllMilestones();
+  }
+
   @Post('milestones/tasks/:taskId/evidence/upload-url')
   @UseGuards(JwtAuthGuard)
   createUploadUrl(

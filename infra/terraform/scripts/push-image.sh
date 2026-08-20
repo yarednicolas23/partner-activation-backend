@@ -19,8 +19,10 @@ echo "==> Tag:  $TAG"
 
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
 
-docker build -t "backend:$TAG" "$BACKEND_DIR"
-docker tag "backend:$TAG" "$REPO_URL:$TAG"
-docker push "$REPO_URL:$TAG"
+# App Runner solo corre imágenes x86_64 — un `docker build` sin --platform
+# en una Mac Apple Silicon produce arm64 y el deploy falla sin logs (el
+# runtime ni siquiera puede ejecutar el binario). buildx con --platform
+# fuerza amd64 sin importar la arquitectura de la máquina que hace el build.
+docker buildx build --platform linux/amd64 -t "$REPO_URL:$TAG" "$BACKEND_DIR" --push
 
 echo "==> Listo: $REPO_URL:$TAG"

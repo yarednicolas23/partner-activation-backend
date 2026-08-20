@@ -60,3 +60,39 @@ resource "aws_iam_role_policy" "apprunner_instance_secrets" {
   role   = aws_iam_role.apprunner_instance.id
   policy = data.aws_iam_policy_document.apprunner_instance_secrets.json
 }
+
+# S3 (evidencias) y SES (notificaciones) — mismos permisos que el usuario IAM
+# interino de s3.tf/ses.tf, migrados acá para cuando el contenedor corre en
+# App Runner (SDK toma credenciales del instance role automáticamente, sin
+# necesitar AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY como env vars).
+data "aws_iam_policy_document" "apprunner_instance_s3" {
+  statement {
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["${aws_s3_bucket.evidence.arn}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "apprunner_instance_s3" {
+  name   = "${var.project_name}-${var.environment}-apprunner-s3-evidence"
+  role   = aws_iam_role.apprunner_instance.id
+  policy = data.aws_iam_policy_document.apprunner_instance_s3.json
+}
+
+data "aws_iam_policy_document" "apprunner_instance_ses" {
+  statement {
+    actions   = ["ses:SendEmail", "ses:SendRawEmail"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ses:FromAddress"
+      values   = [var.ses_from_email]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "apprunner_instance_ses" {
+  name   = "${var.project_name}-${var.environment}-apprunner-ses-send"
+  role   = aws_iam_role.apprunner_instance.id
+  policy = data.aws_iam_policy_document.apprunner_instance_ses.json
+}
