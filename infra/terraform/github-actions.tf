@@ -13,10 +13,37 @@ variable "github_repo" {
   default     = "yarednicolas23/partner-activation-backend"
 }
 
+# GitHub agrega los IDs numéricos inmutables del owner/repo al claim "sub"
+# (repo:<owner>@<ownerId>/<repo>@<repoId>:ref:...) — no el simple "owner/repo"
+# que documentan la mayoría de los tutoriales. Confirmado leyendo el
+# principalId real en CloudTrail para AssumeRoleWithWebIdentity después de
+# que la condición "owner/repo" sin IDs rechazara todos los intentos con
+# "Not authorized" (2026-08-21). IDs de este repo: owner=15717668, repo=1326242338.
+variable "github_owner_id" {
+  description = "ID numérico inmutable del owner (github.com/users/<owner> → \"id\" en la API, o desde el sub claim real en CloudTrail)."
+  type        = string
+  default     = "15717668"
+}
+
+variable "github_repo_id" {
+  description = "ID numérico inmutable del repo (GET /repos/<owner>/<repo> → \"id\" en la API de GitHub)."
+  type        = string
+  default     = "1326242338"
+}
+
 resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+
+  # GitHub migró de DigiCert a Let's Encrypt (CA "ISRG Root X1") en algún
+  # momento sin avisar — el thumbprint viejo (DigiCert, el que usan casi
+  # todos los tutoriales) quedó obsoleto y rompía el assume-role con el
+  # mismo "Not authorized" genérico. Se dejan ambos por las dudas de que
+  # GitHub vuelva a rotar.
+  thumbprint_list = [
+    "ab9d0263244dd0326eb67015705a667e79cfe998", # ISRG Root X1 (actual, 2026-08-21)
+    "6938fd4d98bab03faadb97b34396831e3780aea1", # DigiCert (histórico)
+  ]
 }
 
 data "aws_iam_policy_document" "github_actions_assume" {
@@ -35,11 +62,13 @@ data "aws_iam_policy_document" "github_actions_assume" {
     }
 
     # Restringido a la rama main del repo — ajustar si el pipeline debe
-    # correr también desde otras ramas/tags.
+    # correr también desde otras ramas/tags. Usa los IDs inmutables (ver
+    # nota arriba) — StringEquals, no StringLike, porque ya es el valor
+    # exacto y no un patrón.
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = ["repo:${split("/", var.github_repo)[0]}@${var.github_owner_id}/${split("/", var.github_repo)[1]}@${var.github_repo_id}:ref:refs/heads/main"]
     }
   }
 }
