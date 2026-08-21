@@ -78,28 +78,28 @@ from public.milestones m
 join (values
   -- Discover
   (1, 1, 'Registro no Partner Portal', 'Concluído automaticamente ao aceitar o convite.', 'none'),
-  (1, 2, 'Participação no Webinar de Onboarding Comercial', 'Informe o e-mail usado para participar do webinar.', 'text'),
-  (1, 3, 'Participação no Webinar de Onboarding Técnico', 'Informe o e-mail usado para participar do webinar.', 'text'),
+  (1, 2, 'Participação no Webinar de Onboarding Comercial', 'Envie o certificado ou print de participação no webinar.', 'file'),
+  (1, 3, 'Participação no Webinar de Onboarding Técnico', 'Envie o certificado ou print de participação no webinar.', 'file'),
   (1, 4, 'Download do Sales Kit', 'Confirmação do download.', 'none'),
-  (1, 5, 'Inclusão do logo Kaspersky no site do parceiro', 'Informe o link da página onde o logo foi incluído.', 'text'),
+  (1, 5, 'Inclusão do logo Kaspersky no site do parceiro', 'Envie um print da página com o logo incluído.', 'file'),
   -- Enablement
-  (2, 1, 'Conclusão do treinamento online (Comercial)', 'Informe o e-mail usado no treinamento.', 'text'),
-  (2, 2, 'Conclusão do treinamento online (Técnico)', 'Informe o e-mail usado no treinamento.', 'text'),
+  (2, 1, 'Conclusão do treinamento online (Comercial)', 'Envie o certificado ou print de conclusão do treinamento.', 'file'),
+  (2, 2, 'Conclusão do treinamento online (Técnico)', 'Envie o certificado ou print de conclusão do treinamento.', 'file'),
   (2, 3, 'Obtenção da Certificação Comercial', 'Envie o documento de certificação.', 'file'),
   (2, 4, 'Obtenção da Certificação Técnica', 'Envie o documento de certificação.', 'file'),
-  (2, 5, 'Comunicação da parceria — Redes sociais', 'Link público da publicação.', 'text'),
+  (2, 5, 'Comunicação da parceria — Redes sociais', 'Envie um print da publicação.', 'file'),
   (2, 6, 'Comunicação da parceria — E-mail marketing', 'Envie o print ou o HTML usado no envio.', 'file'),
-  (2, 7, 'Comunicação da parceria — Press release', 'Link público da publicação.', 'text'),
-  (2, 8, 'Comunicação da parceria — Blog post', 'Link público da publicação.', 'text'),
-  (2, 9, 'Comunicação da parceria — Site do canal', 'Link público da publicação.', 'text'),
+  (2, 7, 'Comunicação da parceria — Press release', 'Envie o arquivo ou print do press release publicado.', 'file'),
+  (2, 8, 'Comunicação da parceria — Blog post', 'Envie um print do blog post publicado.', 'file'),
+  (2, 9, 'Comunicação da parceria — Site do canal', 'Envie um print da página do site do canal.', 'file'),
   -- Engaging
-  (3, 1, 'Cadastro de vendedores na plataforma KUDOS', 'Informe os usuários cadastrados.', 'text'),
-  (3, 2, 'Resposta ao quiz de parceria', 'Informe o e-mail de quem respondeu.', 'text'),
+  (3, 1, 'Cadastro de vendedores na plataforma KUDOS', 'Envie um print da lista de usuários cadastrados na KUDOS.', 'file'),
+  (3, 2, 'Resposta ao quiz de parceria', 'Envie o print do resultado do quiz.', 'file'),
   (3, 3, 'Ação de geração de demanda', 'Webinar, evento, prospecção outbound, social selling, identificação de 5 clientes potenciais ou sales blitz interno — envie a evidência da ação escolhida.', 'file'),
   -- Prospecting
-  (4, 1, 'Primeiro registro de oportunidade (Deal Registration)', 'Informe o número do deal registration (deve estar previamente aprovado).', 'text'),
+  (4, 1, 'Primeiro registro de oportunidade (Deal Registration)', 'Envie o documento ou print do deal registration aprovado.', 'file'),
   (4, 2, 'Reunião conjunta com a Kaspersky', 'Envie fotos e a lista de participantes.', 'file'),
   -- Win/Celebration
-  (5, 1, 'Fechamento da primeira venda', 'Informe o número do pedido.', 'text')
+  (5, 1, 'Fechamento da primeira venda', 'Envie o documento ou print do pedido (order number).', 'file')
 ) as t(milestone_order, order_index, title, description, evidence_type)
   on t.milestone_order = m.order_index;
