@@ -2,10 +2,12 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
+import { EmailService } from '../email/email.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { PartnerProfile } from './partner-profile.interface';
 
@@ -19,9 +21,12 @@ import { PartnerProfile } from './partner-profile.interface';
  */
 @Injectable()
 export class PartnersService {
+  private readonly logger = new Logger(PartnersService.name);
+
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   async invitePartner(dto: CreatePartnerDto): Promise<PartnerProfile> {
@@ -62,7 +67,27 @@ export class PartnersService {
       );
     }
 
+    this.notifyPartnerInvited(profile as PartnerProfile).catch((error) =>
+      this.logger.error(
+        `Falha ao enviar e-mail de boas-vindas: ${(error as Error).message}`,
+      ),
+    );
+
     return profile as PartnerProfile;
+  }
+
+  private async notifyPartnerInvited(partner: PartnerProfile) {
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const greeting = partner.full_name ? `Olá, ${partner.full_name}` : 'Olá';
+
+    await this.emailService.send({
+      to: [partner.email],
+      subject: 'Bem-vindo ao Partner Activation Program da Kaspersky',
+      html: `<p>${greeting}!</p>
+        <p>Você foi cadastrado no Partner Activation Program da Kaspersky. O programa tem 5 milestones — Discover, Enablement, Engaging, Prospecting e Win/Celebration — que vão te guiar até a sua primeira venda.</p>
+        <p>Verifique seu e-mail: você recebeu (ou vai receber em instantes) um link de acesso separado para entrar na plataforma pela primeira vez.</p>
+        ${frontendUrl ? `<p><a href="${frontendUrl}/login">Acessar a plataforma</a></p>` : ''}`,
+    });
   }
 
   async listPartners(): Promise<PartnerProfile[]> {

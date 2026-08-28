@@ -4,10 +4,12 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
+import { EmailService } from '../email/email.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
 import { UpdateRewardDto } from './dto/update-reward.dto';
 import {
@@ -26,9 +28,12 @@ import {
  */
 @Injectable()
 export class RewardsService {
+  private readonly logger = new Logger(RewardsService.name);
+
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly milestonesService: MilestonesService,
+    private readonly emailService: EmailService,
   ) {}
 
   private get client() {
@@ -201,13 +206,41 @@ export class RewardsService {
         reviewed_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select()
+      .select(this.redemptionSelect)
       .single();
 
     if (error || !data) {
       throw new NotFoundException('Solicitação não encontrada');
     }
-    return data as RewardRedemption;
+
+    const [redemption] = this.mapRedemptionRows([data]);
+    this.notifyRedemptionStatusChanged(redemption).catch((error) =>
+      this.logger.error(
+        `Falha ao notificar mudança de status de resgate: ${(error as Error).message}`,
+      ),
+    );
+
+    return redemption;
+  }
+
+  private async notifyRedemptionStatusChanged(redemption: RedemptionQueueItem) {
+    const statusLabel: Record<RedemptionStatus, string> = {
+      pending: 'Pendente',
+      approved: 'Aprovado',
+      rejected: 'Rejeitado',
+      fulfilled: 'Entregue',
+    };
+    const greeting = redemption.partner.full_name
+      ? `Olá, ${redemption.partner.full_name}`
+      : 'Olá';
+
+    await this.emailService.send({
+      to: [redemption.partner.email],
+      subject: `Sua solicitação de resgate: ${statusLabel[redemption.status]}`,
+      html: `<p>${greeting},</p>
+        <p>O status da sua solicitação para <strong>${redemption.reward.title}</strong> foi atualizado para <strong>${statusLabel[redemption.status]}</strong>.</p>
+        ${redemption.admin_note ? `<p>Nota: ${redemption.admin_note}</p>` : ''}`,
+    });
   }
 
   private mapRedemptionRows(rows: any[]): RedemptionQueueItem[] {

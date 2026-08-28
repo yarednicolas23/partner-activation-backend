@@ -390,6 +390,13 @@ export class MilestonesService {
     }
 
     await this.notifyMilestoneCompleted(partnerId, milestone);
+
+    const allMilestonesComplete = milestones.every((m) =>
+      this.isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
+    );
+    if (allMilestonesComplete) {
+      await this.notifyProgramCompleted(partnerId);
+    }
   }
 
   private async notifyMilestoneCompleted(
@@ -422,6 +429,31 @@ export class MilestonesService {
             ? `<p><a href="${frontendUrl}/admin/evidence">Ver detalhes</a></p>`
             : ''
         }`,
+      });
+    }
+  }
+
+  private async notifyProgramCompleted(partnerId: string) {
+    const { partnerEmail, partnerName, adminEmails } =
+      await this.getNotificationRecipients(partnerId);
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const greeting = partnerName ? `Parabéns, ${partnerName}` : 'Parabéns';
+
+    if (partnerEmail) {
+      await this.emailService.send({
+        to: [partnerEmail],
+        subject: 'Você concluiu o Partner Activation Program!',
+        html: `<p>${greeting}! 🎉</p>
+          <p>Você concluiu todos os 5 milestones do Partner Activation Program da Kaspersky — Discover, Enablement, Engaging, Prospecting e Win/Celebration. Parabéns por essa conquista!</p>
+          ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>` : ''}`,
+      });
+    }
+
+    if (adminEmails.length > 0) {
+      await this.emailService.send({
+        to: adminEmails,
+        subject: `Parceiro concluiu o programa: ${partnerName ?? partnerEmail ?? 'parceiro'}`,
+        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todos os 5 milestones do programa.</p>`,
       });
     }
   }
