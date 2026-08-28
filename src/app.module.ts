@@ -10,6 +10,7 @@ import { PartnersModule } from './partners/partners.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RemindersModule } from './reminders/reminders.module';
     MilestonesModule,
     RewardsModule,
     RemindersModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
