@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -105,6 +106,7 @@ export class MilestonesService {
       );
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
+    await this.assertEvidenceNotApproved(taskId, partnerId);
     return this.finalizeEvidenceSubmission(partnerId, task, {
       text_value: textValue,
       file_path: null,
@@ -121,6 +123,7 @@ export class MilestonesService {
       throw new BadRequestException('Esta tarefa não aceita upload de arquivo');
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
+    await this.assertEvidenceNotApproved(taskId, partnerId);
 
     const filePath = `${partnerId}/${taskId}/${Date.now()}-${randomUUID()}`;
     const { url, fields } = await this.s3Service.createEvidenceUploadPost(
@@ -146,6 +149,7 @@ export class MilestonesService {
       throw new BadRequestException('filePath inválido');
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
+    await this.assertEvidenceNotApproved(taskId, partnerId);
 
     return this.finalizeEvidenceSubmission(partnerId, task, {
       text_value: null,
@@ -484,6 +488,27 @@ export class MilestonesService {
     );
     if (!unlockedIds.has(milestoneId)) {
       throw new ForbiddenException('Este milestone ainda não foi desbloqueado');
+    }
+  }
+
+  /**
+   * Sin esto, un partner podía reenviar evidencia para una tarea ya
+   * aprobada y resetearla a "pending" sin que la review anterior quedara
+   * protegida — como el desbloqueo de milestones se recalcula en vivo
+   * desde task_evidence, eso podía re-bloquear milestones ya alcanzados.
+   */
+  private async assertEvidenceNotApproved(taskId: string, partnerId: string) {
+    const { data } = await this.client
+      .from('task_evidence')
+      .select('status')
+      .eq('task_id', taskId)
+      .eq('partner_id', partnerId)
+      .maybeSingle();
+
+    if (data?.status === 'approved') {
+      throw new ConflictException(
+        'Esta evidência já foi aprovada e não pode ser reenviada',
+      );
     }
   }
 
