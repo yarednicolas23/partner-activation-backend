@@ -21,6 +21,10 @@ import {
   TaskEvidence,
   TaskWithEvidence,
 } from './milestone.interfaces';
+import {
+  computeUnlockedMilestoneIds,
+  isMilestoneComplete,
+} from './milestone-logic';
 
 /**
  * Desbloqueo secuencial de milestones (brief §4: "each milestone depends on
@@ -61,7 +65,7 @@ export class MilestonesService {
   async getPartnerView(partnerId: string): Promise<MilestoneView[]> {
     const { milestones, tasksByMilestone, evidenceByTask } =
       await this.loadMilestoneData(partnerId);
-    const unlockedIds = this.computeUnlockedMilestoneIds(
+    const unlockedIds = computeUnlockedMilestoneIds(
       milestones,
       tasksByMilestone,
       evidenceByTask,
@@ -353,29 +357,11 @@ export class MilestonesService {
 
     const completed = new Set<string>();
     for (const milestone of milestones) {
-      if (
-        this.isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)
-      ) {
+      if (isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)) {
         completed.add(milestone.id);
       }
     }
     return completed;
-  }
-
-  private isMilestoneComplete(
-    milestoneId: string,
-    tasksByMilestone: Map<string, MilestoneTask[]>,
-    evidenceByTask: Map<string, TaskEvidence>,
-  ): boolean {
-    const requiredTasks = (tasksByMilestone.get(milestoneId) ?? []).filter(
-      (t) => t.evidence_type !== 'none',
-    );
-    return (
-      requiredTasks.length > 0 &&
-      requiredTasks.every(
-        (t) => evidenceByTask.get(t.id)?.status === 'approved',
-      )
-    );
   }
 
   private async checkMilestoneCompletion(partnerId: string, taskId: string) {
@@ -387,16 +373,14 @@ export class MilestonesService {
       return;
     }
 
-    if (
-      !this.isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)
-    ) {
+    if (!isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)) {
       return;
     }
 
     await this.notifyMilestoneCompleted(partnerId, milestone);
 
     const allMilestonesComplete = milestones.every((m) =>
-      this.isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
+      isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
     );
     if (allMilestonesComplete) {
       await this.notifyProgramCompleted(partnerId);
@@ -481,7 +465,7 @@ export class MilestonesService {
   ) {
     const { milestones, tasksByMilestone, evidenceByTask } =
       await this.loadMilestoneData(partnerId);
-    const unlockedIds = this.computeUnlockedMilestoneIds(
+    const unlockedIds = computeUnlockedMilestoneIds(
       milestones,
       tasksByMilestone,
       evidenceByTask,
@@ -579,35 +563,5 @@ export class MilestonesService {
       tasksByMilestone,
       evidenceByTask,
     };
-  }
-
-  private computeUnlockedMilestoneIds(
-    milestones: Milestone[],
-    tasksByMilestone: Map<string, MilestoneTask[]>,
-    evidenceByTask: Map<string, TaskEvidence>,
-  ): Set<string> {
-    const unlocked = new Set<string>();
-
-    for (let i = 0; i < milestones.length; i++) {
-      if (i === 0) {
-        unlocked.add(milestones[i].id);
-        continue;
-      }
-
-      const previous = milestones[i - 1];
-      const previousTasks = (tasksByMilestone.get(previous.id) ?? []).filter(
-        (task) => task.evidence_type !== 'none',
-      );
-      const previousApproved = previousTasks.every(
-        (task) => evidenceByTask.get(task.id)?.status === 'approved',
-      );
-
-      if (!previousApproved) {
-        break; // secuencial: si N-1 no está completo, N y los siguientes quedan bloqueados
-      }
-      unlocked.add(milestones[i].id);
-    }
-
-    return unlocked;
   }
 }

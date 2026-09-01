@@ -4,8 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
 import { EmailService } from '../email/email.service';
-
-const INACTIVITY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+import { evaluateReminder } from './reminder-logic';
 
 interface PartnerRow {
   id: string;
@@ -18,7 +17,8 @@ interface PartnerRow {
 /**
  * Recordatorio de inactividad (brief §"Comunicaciones"): si un partner con
  * un milestone desbloqueado no envía ninguna evidencia en 7 días, recibe un
- * email — con throttle de 7 días para no repetirlo a diario.
+ * email — con throttle de 7 días para no repetirlo a diario. La decisión en
+ * sí vive en reminder-logic.ts (testeable sin mockear Supabase/cron).
  */
 @Injectable()
 export class RemindersService {
@@ -57,41 +57,21 @@ export class RemindersService {
   }
 
   private async checkAndRemind(partner: PartnerRow) {
-    const now = Date.now();
-
-    if (
-      partner.reminded_at &&
-      now - new Date(partner.reminded_at).getTime() < INACTIVITY_THRESHOLD_MS
-    ) {
-      return;
-    }
-
     const milestones = await this.milestonesService.getPartnerView(partner.id);
     const unlockedTasks = milestones.flatMap((m) => m.tasks ?? []);
-    const pendingTasks = unlockedTasks.filter(
-      (t) =>
-        t.evidence_type !== 'none' &&
-        (!t.evidence || t.evidence.status === 'rejected'),
-    );
 
-    if (pendingTasks.length === 0) {
+    const { shouldRemind, pendingCount } = evaluateReminder({
+      now: Date.now(),
+      remindedAt: partner.reminded_at,
+      createdAt: partner.created_at,
+      unlockedTasks,
+    });
+
+    if (!shouldRemind) {
       return;
     }
 
-    const submittedTimestamps = unlockedTasks
-      .map((t) => t.evidence?.submitted_at)
-      .filter((v): v is string => Boolean(v))
-      .map((v) => new Date(v).getTime());
-    const lastActivity =
-      submittedTimestamps.length > 0
-        ? Math.max(...submittedTimestamps)
-        : new Date(partner.created_at).getTime();
-
-    if (now - lastActivity < INACTIVITY_THRESHOLD_MS) {
-      return;
-    }
-
-    await this.sendReminder(partner, pendingTasks.length);
+    await this.sendReminder(partner, pendingCount);
 
     await this.client
       .from('profiles')
