@@ -31,7 +31,7 @@ export class StatsService {
         .eq('role', 'partner'),
       this.client
         .from('milestones')
-        .select('id, order_index')
+        .select('id, order_index, title')
         .order('order_index'),
       this.client
         .from('milestone_tasks')

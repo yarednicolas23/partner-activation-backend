@@ -1,4 +1,8 @@
-import { AdminStats, WeeklyCount } from './stats.interfaces';
+import {
+  AdminStats,
+  MilestoneDistributionEntry,
+  WeeklyCount,
+} from './stats.interfaces';
 
 /**
  * Lógica pura de cálculo de KPIs — separada de StatsService para poder
@@ -26,6 +30,7 @@ export interface PartnerRow {
 export interface MilestoneRow {
   id: string;
   order_index: number;
+  title: string;
 }
 
 export function weekLabel(isoDate: string): string {
@@ -73,6 +78,7 @@ export function computeAdminStats(
   let programCompletedCount = 0;
   const firstSaleDurationsMs: number[] = [];
   const registeredByWeek = new Map<string, number>();
+  const currentPartnerCountByMilestone = new Map<string, number>();
 
   for (const partner of partnerRows) {
     if ((evidenceCountByPartner.get(partner.id) ?? 0) > 0) {
@@ -80,6 +86,10 @@ export function computeAdminStats(
     }
 
     let completedMilestones = 0;
+    // Etapa "atual" de un partner = la primera (en orden) que aún no
+    // completó — asume el modelo secuencial del brief (cada etapa depende
+    // de la anterior), igual que milestone-logic.ts.
+    let currentMilestoneId: string | null = null;
     for (const milestone of milestoneRows) {
       const requiredIds = requiredTaskIdsByMilestone.get(milestone.id) ?? [];
       const allApproved =
@@ -89,7 +99,17 @@ export function computeAdminStats(
             evidenceByPartnerTask.get(`${partner.id}:${taskId}`)?.status ===
             'approved',
         );
-      if (allApproved) completedMilestones++;
+      if (allApproved) {
+        completedMilestones++;
+      } else if (currentMilestoneId === null) {
+        currentMilestoneId = milestone.id;
+      }
+    }
+    if (currentMilestoneId !== null) {
+      currentPartnerCountByMilestone.set(
+        currentMilestoneId,
+        (currentPartnerCountByMilestone.get(currentMilestoneId) ?? 0) + 1,
+      );
     }
     completionRatioSum +=
       totalMilestones > 0 ? completedMilestones / totalMilestones : 0;
@@ -129,6 +149,15 @@ export function computeAdminStats(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, count]) => ({ week, count }));
 
+  const partnersByMilestone: MilestoneDistributionEntry[] = milestoneRows.map(
+    (milestone) => ({
+      milestoneId: milestone.id,
+      orderIndex: milestone.order_index,
+      title: milestone.title,
+      partnerCount: currentPartnerCountByMilestone.get(milestone.id) ?? 0,
+    }),
+  );
+
   return {
     totalPartners,
     activatedPartners: activatedCount,
@@ -138,5 +167,6 @@ export function computeAdminStats(
     partnersCompletedProgram: programCompletedCount,
     avgTimeToFirstSaleDays,
     partnersRegisteredByWeek,
+    partnersByMilestone,
   };
 }

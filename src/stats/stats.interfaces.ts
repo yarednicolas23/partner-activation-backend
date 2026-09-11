@@ -3,6 +3,13 @@ export interface WeeklyCount {
   count: number;
 }
 
+export interface MilestoneDistributionEntry {
+  milestoneId: string;
+  orderIndex: number;
+  title: string;
+  partnerCount: number;
+}
+
 export interface AdminStats {
   totalPartners: number;
   activatedPartners: number;
@@ -11,4 +18,5 @@ export interface AdminStats {
   partnersCompletedProgram: number;
   avgTimeToFirstSaleDays: number | null;
   partnersRegisteredByWeek: WeeklyCount[];
+  partnersByMilestone: MilestoneDistributionEntry[];
 }

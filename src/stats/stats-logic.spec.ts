@@ -11,8 +11,8 @@ function partner(id: string, created_at: string): PartnerRow {
   return { id, created_at };
 }
 
-function milestone(id: string, order_index: number): MilestoneRow {
-  return { id, order_index };
+function milestone(id: string, order_index: number, title = id): MilestoneRow {
+  return { id, order_index, title };
 }
 
 function task(
@@ -84,6 +84,35 @@ describe('computeAdminStats', () => {
 
     const stats = computeAdminStats(partners, milestones, tasks, evidenceRows);
     expect(stats.avgMilestoneCompletionRate).toBe(0.25); // (0.5 + 0) / 2
+  });
+
+  it('buckets each partner under the first milestone they have not yet completed', () => {
+    const partners = [
+      partner('p1', '2026-08-01T00:00:00Z'), // parado en m1
+      partner('p2', '2026-08-01T00:00:00Z'), // completó m1, parado en m2
+      partner('p3', '2026-08-01T00:00:00Z'), // completó todo — no cuenta en ningún balde
+    ];
+    const milestones = [
+      milestone('m1', 1, 'Discover'),
+      milestone('m2', 2, 'Enablement'),
+    ];
+    const tasks = [task('t1', 'm1'), task('t2', 'm2')];
+    const evidenceRows = [
+      evidence('p2', 't1', 'approved'),
+      evidence('p3', 't1', 'approved'),
+      evidence('p3', 't2', 'approved'),
+    ];
+
+    const stats = computeAdminStats(partners, milestones, tasks, evidenceRows);
+    expect(stats.partnersByMilestone).toEqual([
+      { milestoneId: 'm1', orderIndex: 1, title: 'Discover', partnerCount: 1 },
+      {
+        milestoneId: 'm2',
+        orderIndex: 2,
+        title: 'Enablement',
+        partnerCount: 1,
+      },
+    ]);
   });
 
   it('ignores "none" tasks when deciding whether a milestone counts as completed', () => {
