@@ -76,6 +76,12 @@ export class MilestonesController {
     );
   }
 
+  @Get('milestones/me/evidence')
+  @UseGuards(JwtAuthGuard)
+  listMyEvidenceHistory(@CurrentUser() user: AuthenticatedUser) {
+    return this.milestonesService.listPartnerEvidenceHistory(user.id);
+  }
+
   @Get('milestones/admin/evidence')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
