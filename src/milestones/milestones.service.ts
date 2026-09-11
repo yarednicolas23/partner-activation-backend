@@ -432,7 +432,7 @@ export class MilestonesService {
         to: [partnerEmail],
         subject: 'Você concluiu o Kaspersky Partner Quest!',
         html: `<p>${greeting}! 🎉</p>
-          <p>Você concluiu todas as 5 etapas do Kaspersky Partner Quest — Discover, Enablement, Engaging, Prospecting e Win/Celebration. Parabéns por essa conquista!</p>
+          <p>Você concluiu todas as 5 etapas do Kaspersky Partner Quest — Discover, Capacitação, Engaging, Prospecting e Win/Celebration. Parabéns por essa conquista!</p>
           ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>` : ''}`,
       });
     }

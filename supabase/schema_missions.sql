@@ -67,7 +67,7 @@ create policy "task_evidence_insert_own"
 
 insert into public.milestones (order_index, title, description) values
   (1, 'Discover', 'Registro, onboarding e primeiros passos com a Kaspersky.'),
-  (2, 'Enablement', 'Treinamentos, certificações e comunicação da parceria.'),
+  (2, 'Capacitação', 'Treinamentos, certificações e comunicação da parceria.'),
   (3, 'Engaging', 'Registro na KUDOS, quiz de parceria e geração de demanda.'),
   (4, 'Prospecting', 'Primeira oportunidade registrada e reunião conjunta.'),
   (5, 'Win/Celebration', 'Fechamento da primeira venda.');
@@ -77,7 +77,7 @@ select m.id, t.order_index, t.title, t.description, t.evidence_type::public.evid
 from public.milestones m
 join (values
   -- Discover
-  (1, 1, 'Registro no Partner Portal', 'Concluído automaticamente ao aceitar o convite.', 'none'),
+  (1, 1, 'Registro no Portal do parceiro', 'Concluído automaticamente ao aceitar o convite.', 'none'),
   (1, 2, 'Participação no Webinar de Onboarding Comercial', 'Envie o certificado ou print de participação no webinar.', 'file'),
   (1, 3, 'Participação no Webinar de Onboarding Técnico', 'Envie o certificado ou print de participação no webinar.', 'file'),
   (1, 4, 'Download do Sales Kit', 'Confirmação do download.', 'none'),
