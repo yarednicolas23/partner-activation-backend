@@ -73,10 +73,14 @@ export class MilestonesService {
 
     return milestones.map((milestone): MilestoneView => {
       if (!unlockedIds.has(milestone.id)) {
+        // Bloqueada, pero el título se muestra igual (AJUSTE 04 del cliente:
+        // ver los "next steps" aunque estén bloqueados) — description/tasks
+        // se quedan ocultos hasta desbloquear.
         return {
           id: milestone.id,
           order_index: milestone.order_index,
           locked: true,
+          title: milestone.title,
         };
       }
 
