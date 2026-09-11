@@ -324,7 +324,7 @@ export class MilestonesService {
     if (partnerEmail) {
       await this.emailService.send({
         to: [partnerEmail],
-        subject: 'Evidência recebida — Partner Activation Program',
+        subject: 'Evidência recebida — Kaspersky Partner Quest',
         html: `<p>${greeting},</p><p>Recebemos sua evidência para a tarefa <strong>${task.title}</strong>. Nossa equipe vai revisar em breve.</p>${
           frontendUrl
             ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
@@ -399,8 +399,8 @@ export class MilestonesService {
     if (partnerEmail) {
       await this.emailService.send({
         to: [partnerEmail],
-        subject: `Milestone concluído: ${milestone.title}`,
-        html: `<p>${greeting}!</p><p>Você concluiu o milestone <strong>${milestone.title}</strong>.</p>${
+        subject: `Etapa concluída: ${milestone.title}`,
+        html: `<p>${greeting}!</p><p>Você concluiu a etapa <strong>${milestone.title}</strong>.</p>${
           frontendUrl
             ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
             : ''
@@ -411,8 +411,8 @@ export class MilestonesService {
     if (adminEmails.length > 0) {
       await this.emailService.send({
         to: adminEmails,
-        subject: `Parceiro concluiu milestone: ${milestone.title}`,
-        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu o milestone <strong>${milestone.title}</strong>.</p>${
+        subject: `Parceiro concluiu etapa: ${milestone.title}`,
+        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu a etapa <strong>${milestone.title}</strong>.</p>${
           frontendUrl
             ? `<p><a href="${frontendUrl}/admin/evidence">Ver detalhes</a></p>`
             : ''
@@ -430,9 +430,9 @@ export class MilestonesService {
     if (partnerEmail) {
       await this.emailService.send({
         to: [partnerEmail],
-        subject: 'Você concluiu o Partner Activation Program!',
+        subject: 'Você concluiu o Kaspersky Partner Quest!',
         html: `<p>${greeting}! 🎉</p>
-          <p>Você concluiu todos os 5 milestones do Partner Activation Program da Kaspersky — Discover, Enablement, Engaging, Prospecting e Win/Celebration. Parabéns por essa conquista!</p>
+          <p>Você concluiu todas as 5 etapas do Kaspersky Partner Quest — Discover, Enablement, Engaging, Prospecting e Win/Celebration. Parabéns por essa conquista!</p>
           ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>` : ''}`,
       });
     }
@@ -441,7 +441,7 @@ export class MilestonesService {
       await this.emailService.send({
         to: adminEmails,
         subject: `Parceiro concluiu o programa: ${partnerName ?? partnerEmail ?? 'parceiro'}`,
-        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todos os 5 milestones do programa.</p>`,
+        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todas as 5 etapas do programa.</p>`,
       });
     }
   }
@@ -471,7 +471,7 @@ export class MilestonesService {
       evidenceByTask,
     );
     if (!unlockedIds.has(milestoneId)) {
-      throw new ForbiddenException('Este milestone ainda não foi desbloqueado');
+      throw new ForbiddenException('Esta etapa ainda não foi desbloqueada');
     }
   }
 

@@ -85,9 +85,9 @@ export class RemindersService {
 
     await this.emailService.send({
       to: [partner.email],
-      subject: 'Você tem missões pendentes no Partner Activation Program',
+      subject: 'Você tem missões pendentes no Kaspersky Partner Quest',
       html: `<p>${greeting},</p>
-        <p>Notamos que você tem ${pendingCount} tarefa${pendingCount > 1 ? 's' : ''} pendente${pendingCount > 1 ? 's' : ''} no seu milestone atual. Continue de onde parou para avançar no programa.</p>
+        <p>Notamos que você tem ${pendingCount} tarefa${pendingCount > 1 ? 's' : ''} pendente${pendingCount > 1 ? 's' : ''} na sua etapa atual. Continue de onde parou para avançar no programa.</p>
         ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver minhas missões</a></p>` : ''}`,
     });
   }
