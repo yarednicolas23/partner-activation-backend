@@ -66,23 +66,23 @@ create policy "task_evidence_insert_own"
 -- traducido a pt-BR. Editable por SQL si Kaspersky ajusta el contenido final.
 
 insert into public.milestones (order_index, title, description) values
-  (1, 'Discover', 'Registro, onboarding e primeiros passos com a Kaspersky.'),
+  (1, 'Descoberta', 'Registro, onboarding e primeiros passos com a Kaspersky.'),
   (2, 'Capacitação', 'Treinamentos, certificações e comunicação da parceria.'),
-  (3, 'Engaging', 'Registro na KUDOS, quiz de parceria e geração de demanda.'),
-  (4, 'Prospecting', 'Primeira oportunidade registrada e reunião conjunta.'),
-  (5, 'Win/Celebration', 'Fechamento da primeira venda.');
+  (3, 'Engajamento', 'Registro na KUDOS, quiz de parceria e geração de demanda.'),
+  (4, 'Prospecção', 'Primeira oportunidade registrada e reunião conjunta.'),
+  (5, 'Conquista', 'Fechamento da primeira venda.');
 
 insert into public.milestone_tasks (milestone_id, order_index, title, description, evidence_type)
 select m.id, t.order_index, t.title, t.description, t.evidence_type::public.evidence_type
 from public.milestones m
 join (values
-  -- Discover
+  -- Descoberta
   (1, 1, 'Registro no Portal do parceiro', 'Concluído automaticamente ao aceitar o convite.', 'none'),
   (1, 2, 'Participação no Webinar de Onboarding Comercial', 'Envie o certificado ou print de participação no webinar.', 'file'),
   (1, 3, 'Participação no Webinar de Onboarding Técnico', 'Envie o certificado ou print de participação no webinar.', 'file'),
   (1, 4, 'Download do Sales Kit', 'Confirmação do download.', 'none'),
   (1, 5, 'Inclusão do logo Kaspersky no site do parceiro', 'Envie um print da página com o logo incluído.', 'file'),
-  -- Enablement
+  -- Capacitação
   (2, 1, 'Conclusão do treinamento online (Comercial)', 'Envie o certificado ou print de conclusão do treinamento.', 'file'),
   (2, 2, 'Conclusão do treinamento online (Técnico)', 'Envie o certificado ou print de conclusão do treinamento.', 'file'),
   (2, 3, 'Obtenção da Certificação Comercial', 'Envie o documento de certificação.', 'file'),
@@ -92,14 +92,14 @@ join (values
   (2, 7, 'Comunicação da parceria — Press release', 'Envie o arquivo ou print do press release publicado.', 'file'),
   (2, 8, 'Comunicação da parceria — Blog post', 'Envie um print do blog post publicado.', 'file'),
   (2, 9, 'Comunicação da parceria — Site do canal', 'Envie um print da página do site do canal.', 'file'),
-  -- Engaging
+  -- Engajamento
   (3, 1, 'Cadastro de vendedores na plataforma KUDOS', 'Envie um print da lista de usuários cadastrados na KUDOS.', 'file'),
   (3, 2, 'Resposta ao quiz de parceria', 'Envie o print do resultado do quiz.', 'file'),
   (3, 3, 'Ação de geração de demanda', 'Webinar, evento, prospecção outbound, social selling, identificação de 5 clientes potenciais ou sales blitz interno — envie a evidência da ação escolhida.', 'file'),
-  -- Prospecting
+  -- Prospecção
   (4, 1, 'Primeiro registro de oportunidade (Deal Registration)', 'Envie o documento ou print do deal registration aprovado.', 'file'),
   (4, 2, 'Reunião conjunta com a Kaspersky', 'Envie fotos e a lista de participantes.', 'file'),
-  -- Win/Celebration
+  -- Conquista
   (5, 1, 'Fechamento da primeira venda', 'Envie o documento ou print do pedido (order number).', 'file')
 ) as t(milestone_order, order_index, title, description, evidence_type)
   on t.milestone_order = m.order_index;

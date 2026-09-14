@@ -84,7 +84,7 @@ export class PartnersService {
       to: [partner.email],
       subject: 'Bem-vindo ao Kaspersky Partner Quest',
       html: `<p>${greeting}!</p>
-        <p>Você foi cadastrado no Kaspersky Partner Quest. O programa tem 5 etapas — Discover, Capacitação, Engaging, Prospecting e Win/Celebration — que vão te guiar até a sua primeira venda.</p>
+        <p>Você foi cadastrado no Kaspersky Partner Quest. O programa tem 5 etapas — Descoberta, Capacitação, Engajamento, Prospecção e Conquista — que vão te guiar até a sua primeira venda.</p>
         <p>Verifique seu e-mail: você recebeu (ou vai receber em instantes) um link de acesso separado para entrar na plataforma pela primeira vez.</p>
         ${frontendUrl ? `<p><a href="${frontendUrl}/login">Acessar a plataforma</a></p>` : ''}`,
     });
