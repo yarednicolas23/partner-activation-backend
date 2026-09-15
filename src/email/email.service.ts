@@ -34,7 +34,11 @@ export class EmailService {
     try {
       await this.client.send(
         new SendEmailCommand({
-          Source: this.fromEmail,
+          // Nombre visible temporal hasta que Kaspersky confirme el dominio
+          // propio (noreply@kaspersky.com) — el address real sigue siendo el
+          // remitente verificado en SES, esto solo cambia el "From" que ve
+          // el destinatario.
+          Source: `"Kaspersky Partner Quest" <${this.fromEmail}>`,
           Destination: { ToAddresses: params.to },
           Message: {
             Subject: { Data: params.subject, Charset: 'UTF-8' },
