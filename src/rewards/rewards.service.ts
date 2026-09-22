@@ -106,6 +106,17 @@ export class RewardsService {
     const completedMilestoneIds =
       await this.milestonesService.getCompletedMilestoneIds(partnerId);
 
+    const catalog = await this.listCatalog();
+
+    return catalog.filter((reward) =>
+      completedMilestoneIds.has(reward.milestone_id),
+    );
+  }
+
+  // Catálogo completo (inclui rewards de etapas ainda não desbloqueadas) —
+  // usado pela tela de Recompensas do parceiro, que mostra também os
+  // rewards bloqueados com a etapa necessária para desbloquear.
+  async listCatalog(): Promise<RewardWithMilestone[]> {
     const { data, error } = await this.client
       .from('rewards')
       .select('*, milestone:milestones(id, order_index, title)')
@@ -116,9 +127,7 @@ export class RewardsService {
       throw new InternalServerErrorException(error.message);
     }
 
-    return ((data ?? []) as RewardWithMilestone[]).filter((reward) =>
-      completedMilestoneIds.has(reward.milestone_id),
-    );
+    return (data ?? []) as RewardWithMilestone[];
   }
 
   async requestRedemption(

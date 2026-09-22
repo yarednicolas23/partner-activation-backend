@@ -44,6 +44,12 @@ export class RewardsController {
     return this.rewardsService.listEligibleRewards(user.id);
   }
 
+  @Get('catalog')
+  @UseGuards(JwtAuthGuard)
+  listCatalog() {
+    return this.rewardsService.listCatalog();
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
