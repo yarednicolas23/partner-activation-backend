@@ -3,3 +3,6 @@ environment = "dev"
 # Del proyecto Supabase de este entorno (Project Settings → API Keys)
 supabase_url               = "https://your-project-ref.supabase.co"
 supabase_service_role_key  = "sb_secret_your-secret-key-here"
+
+# resend.com/api-keys
+resend_api_key = "re_your-resend-api-key"

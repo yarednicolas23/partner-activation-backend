@@ -18,17 +18,18 @@ resource "aws_apprunner_service" "backend" {
         port = "3000"
 
         runtime_environment_variables = {
-          NODE_ENV           = "production"
-          PORT               = "3000"
-          FRONTEND_URL       = var.frontend_url
-          AWS_REGION         = var.aws_region
-          AWS_S3_BUCKET      = aws_s3_bucket.evidence.bucket
-          AWS_SES_FROM_EMAIL = var.ses_from_email
+          NODE_ENV          = "production"
+          PORT              = "3000"
+          FRONTEND_URL      = var.frontend_url
+          AWS_REGION        = var.aws_region
+          AWS_S3_BUCKET     = aws_s3_bucket.evidence.bucket
+          RESEND_FROM_EMAIL = var.resend_from_email
         }
 
         runtime_environment_secrets = {
           SUPABASE_URL              = aws_secretsmanager_secret.supabase_url.arn
           SUPABASE_SERVICE_ROLE_KEY = aws_secretsmanager_secret.supabase_service_role_key.arn
+          RESEND_API_KEY            = aws_secretsmanager_secret.resend_api_key.arn
         }
       }
     }

@@ -15,3 +15,12 @@ resource "aws_secretsmanager_secret_version" "supabase_service_role_key" {
   secret_id     = aws_secretsmanager_secret.supabase_service_role_key.id
   secret_string = var.supabase_service_role_key
 }
+
+resource "aws_secretsmanager_secret" "resend_api_key" {
+  name = "${var.project_name}/${var.environment}/RESEND_API_KEY"
+}
+
+resource "aws_secretsmanager_secret_version" "resend_api_key" {
+  secret_id     = aws_secretsmanager_secret.resend_api_key.id
+  secret_string = var.resend_api_key
+}

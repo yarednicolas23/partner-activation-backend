@@ -51,20 +51,16 @@ variable "memory" {
   default     = "0.5 GB"
 }
 
-variable "ses_from_email" {
-  description = "Remitente verificado para notificaciones por email — placeholder hasta que Kaspersky confirme un dominio propio."
+variable "resend_api_key" {
+  description = "API key de Resend (resend.com/api-keys) — se guarda en Secrets Manager, nunca como env var plana."
   type        = string
-  default     = "yarednicolas@gmail.com"
+  sensitive   = true
 }
 
-variable "ses_test_recipients" {
-  description = "Mientras SES esté en sandbox, todo destinatario también necesita verificarse — cuentas de test ya usadas en la sesión."
-  type        = list(string)
-  default = [
-    "yarednicolas@gmail.com",
-    "yarednicolas@hotmail.com",
-    "hwllysc@gmail.com",
-  ]
+variable "resend_from_email" {
+  description = "Remitente para notificaciones por email. onboarding@resend.dev (dominio de pruebas) solo entrega a la dirección de la cuenta de Resend — para partners reales hace falta un dominio propio verificado (SPF/DKIM) en resend.com/domains."
+  type        = string
+  default     = "onboarding@resend.dev"
 }
 
 variable "frontend_url" {
