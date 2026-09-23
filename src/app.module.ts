@@ -31,7 +31,8 @@ import { StatsModule } from './stats/stats.module';
         // local/Railway siguen viniendo del .env.
         AWS_ACCESS_KEY_ID: Joi.string().optional(),
         AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
-        AWS_SES_FROM_EMAIL: Joi.string().email().required(),
+        RESEND_API_KEY: Joi.string().required(),
+        RESEND_FROM_EMAIL: Joi.string().email().required(),
       }),
     }),
     SupabaseModule,

@@ -9,6 +9,9 @@ export default () => ({
   aws: {
     region: process.env.AWS_REGION,
     s3Bucket: process.env.AWS_S3_BUCKET,
-    sesFromEmail: process.env.AWS_SES_FROM_EMAIL,
+  },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
+    fromEmail: process.env.RESEND_FROM_EMAIL,
   },
 });

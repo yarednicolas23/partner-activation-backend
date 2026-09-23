@@ -1,25 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SendEmailCommand, SESClient } from '@aws-sdk/client-ses';
+import { Resend } from 'resend';
 
 /**
- * SES arranca en modo sandbox: remitente y cada destinatario deben estar
- * verificados a mano (ver infra/terraform/ses.tf). Mientras tanto, cualquier
- * envío a una dirección no verificada falla — por eso todos los llamadores
- * tratan esto como fire-and-forget y nunca dejan que un fallo de email rompa
- * la respuesta de la API.
+ * Reemplaza el envío anterior por AWS SES (sandbox, exigía verificar a mano
+ * cada destinatario de prueba — ver historial de git). Resend no tiene ese
+ * modo sandbox: solo requiere el dominio del remitente verificado (SPF/DKIM)
+ * una vez. Igual que antes, un fallo de envío nunca debe romper el flujo que
+ * lo dispara — todos los llamadores lo tratan como fire-and-forget.
  */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly client: SESClient;
+  private readonly client: Resend;
   private readonly fromEmail: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.client = new SESClient({
-      region: this.configService.getOrThrow<string>('aws.region'),
-    });
-    this.fromEmail = this.configService.getOrThrow<string>('aws.sesFromEmail');
+    this.client = new Resend(this.configService.getOrThrow<string>('resend.apiKey'));
+    this.fromEmail = this.configService.getOrThrow<string>('resend.fromEmail');
   }
 
   async send(params: {
@@ -31,24 +29,20 @@ export class EmailService {
       return;
     }
 
-    try {
-      await this.client.send(
-        new SendEmailCommand({
-          // Nombre visible temporal hasta que Kaspersky confirme el dominio
-          // propio (noreply@kaspersky.com) — el address real sigue siendo el
-          // remitente verificado en SES, esto solo cambia el "From" que ve
-          // el destinatario.
-          Source: `"Kaspersky Partner Quest" <${this.fromEmail}>`,
-          Destination: { ToAddresses: params.to },
-          Message: {
-            Subject: { Data: params.subject, Charset: 'UTF-8' },
-            Body: { Html: { Data: params.html, Charset: 'UTF-8' } },
-          },
-        }),
-      );
-    } catch (error) {
+    const { error } = await this.client.emails.send({
+      // Nombre visible temporal hasta que Kaspersky confirme el dominio
+      // propio (noreply@kaspersky.com) — el address real sigue siendo el
+      // remitente verificado en Resend, esto solo cambia el "From" que ve
+      // el destinatario.
+      from: `Kaspersky Partner Quest <${this.fromEmail}>`,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+
+    if (error) {
       this.logger.error(
-        `Falha ao enviar e-mail para ${params.to.join(', ')}: ${(error as Error).message}`,
+        `Falha ao enviar e-mail para ${params.to.join(', ')}: ${error.message}`,
       );
     }
   }
