@@ -6,3 +6,7 @@ supabase_service_role_key  = "sb_secret_your-secret-key-here"
 
 # resend.com/api-keys
 resend_api_key = "re_your-resend-api-key"
+# Opcional — sobreescribe el default (onboarding@resend.dev) con un remitente
+# de un dominio ya verificado en resend.com/domains. Necesario para entregar
+# a destinatarios que no sean el dueño de la cuenta de Resend.
+# resend_from_email = "noreply@your-verified-domain.com"
