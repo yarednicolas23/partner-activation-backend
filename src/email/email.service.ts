@@ -16,7 +16,9 @@ export class EmailService {
   private readonly fromEmail: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.client = new Resend(this.configService.getOrThrow<string>('resend.apiKey'));
+    this.client = new Resend(
+      this.configService.getOrThrow<string>('resend.apiKey'),
+    );
     this.fromEmail = this.configService.getOrThrow<string>('resend.fromEmail');
   }
 
@@ -24,9 +26,9 @@ export class EmailService {
     to: string[];
     subject: string;
     html: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     if (params.to.length === 0) {
-      return;
+      return false;
     }
 
     const { error } = await this.client.emails.send({
@@ -44,6 +46,9 @@ export class EmailService {
       this.logger.error(
         `Falha ao enviar e-mail para ${params.to.join(', ')}: ${error.message}`,
       );
+      return false;
     }
+
+    return true;
   }
 }

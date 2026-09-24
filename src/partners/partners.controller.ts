@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -17,6 +26,14 @@ export class PartnersController {
   @Roles(Role.Admin)
   invitePartner(@Body() dto: CreatePartnerDto) {
     return this.partnersService.invitePartner(dto);
+  }
+
+  @Post(':id/resend-invite')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  resendInvite(@Param('id', ParseUUIDPipe) id: string) {
+    return this.partnersService.resendInvite(id);
   }
 
   @Get('me')

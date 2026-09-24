@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -88,6 +89,51 @@ export class PartnersService {
         <p>Verifique seu e-mail: você recebeu (ou vai receber em instantes) um link de acesso separado para entrar na plataforma pela primeira vez.</p>
         ${frontendUrl ? `<p><a href="${frontendUrl}/login">Acessar a plataforma</a></p>` : ''}`,
     });
+  }
+
+  /**
+   * Reenvía el acceso a un partner ya invitado (inviteUserByEmail devuelve
+   * 422 si el email existe). Usa generateLink en vez de signInWithOtp: no
+   * pasa por el mailer de Supabase (límite por hora, template en inglés) y
+   * el link de tipo magiclink también confirma a un invitado que nunca
+   * entró. Igual que la invitación, es un link del flujo implícito — lo
+   * completa /auth/callback/finish en el frontend.
+   */
+  async resendInvite(partnerId: string): Promise<void> {
+    const partner = await this.getProfile(partnerId);
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .auth.admin.generateLink({
+        type: 'magiclink',
+        email: partner.email,
+        ...(frontendUrl && {
+          options: { redirectTo: `${frontendUrl}/auth/callback` },
+        }),
+      });
+
+    if (error || !data.properties?.action_link) {
+      throw new InternalServerErrorException(
+        error?.message ?? 'Não foi possível gerar o link de acesso',
+      );
+    }
+
+    const greeting = partner.full_name ? `Olá, ${partner.full_name}` : 'Olá';
+    const sent = await this.emailService.send({
+      to: [partner.email],
+      subject: 'Seu acesso ao Kaspersky Partner Quest',
+      html: `<p>${greeting}!</p>
+        <p>Você foi convidado para o Kaspersky Partner Quest. Use o link abaixo para acessar a plataforma — ele é de uso único e expira em breve.</p>
+        <p><a href="${data.properties.action_link}">Acessar a plataforma</a></p>
+        ${frontendUrl ? `<p>Se o link expirar, solicite um novo em <a href="${frontendUrl}/login">${frontendUrl}/login</a>.</p>` : ''}`,
+    });
+
+    if (!sent) {
+      throw new BadGatewayException(
+        'Não foi possível enviar o e-mail de acesso',
+      );
+    }
   }
 
   async listPartners(): Promise<PartnerProfile[]> {
