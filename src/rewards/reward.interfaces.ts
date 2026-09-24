@@ -9,6 +9,7 @@ export interface Reward {
   type: RewardType;
   milestone_id: string;
   stock: number | null;
+  image_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

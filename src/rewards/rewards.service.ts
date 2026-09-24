@@ -41,7 +41,7 @@ export class RewardsService {
   }
 
   private readonly redemptionSelect = `id, reward_id, partner_id, status, admin_note, reviewed_by, reviewed_at, requested_at,
-     reward:rewards(id, title, description, type, milestone_id, stock, is_active, created_at, updated_at),
+     reward:rewards(id, title, description, type, milestone_id, stock, image_url, is_active, created_at, updated_at),
      partner:profiles!reward_redemptions_partner_id_fkey(id, email, full_name)`;
 
   async createReward(dto: CreateRewardDto): Promise<Reward> {
@@ -53,6 +53,7 @@ export class RewardsService {
         type: dto.type,
         milestone_id: dto.milestoneId,
         stock: dto.stock ?? null,
+        image_url: dto.imageUrl || null,
         is_active: dto.isActive ?? true,
       })
       .select()
@@ -75,6 +76,7 @@ export class RewardsService {
     if (dto.type !== undefined) updates.type = dto.type;
     if (dto.milestoneId !== undefined) updates.milestone_id = dto.milestoneId;
     if (dto.stock !== undefined) updates.stock = dto.stock;
+    if (dto.imageUrl !== undefined) updates.image_url = dto.imageUrl || null;
     if (dto.isActive !== undefined) updates.is_active = dto.isActive;
 
     const { data, error } = await this.client

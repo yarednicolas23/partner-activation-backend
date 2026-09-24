@@ -30,6 +30,11 @@ export class CreateRewardDto {
   @Min(0)
   stock?: number;
 
+  // Ruta pública (/rewards/…) o URL absoluta; "" la quita.
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
