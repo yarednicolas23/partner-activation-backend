@@ -258,6 +258,14 @@ export class MilestonesService {
       );
     }
 
+    if (status === 'rejected' && existing?.status !== 'rejected') {
+      this.notifyEvidenceRejected(evidence).catch((error) =>
+        this.logger.error(
+          `Falha ao notificar evidência não aprovada: ${(error as Error).message}`,
+        ),
+      );
+    }
+
     return evidence;
   }
 
@@ -348,6 +356,32 @@ export class MilestonesService {
         }`,
       });
     }
+  }
+
+  private async notifyEvidenceRejected(evidence: TaskEvidence) {
+    const [{ partnerEmail, partnerName }, task] = await Promise.all([
+      this.getNotificationRecipients(evidence.partner_id),
+      this.getTaskOrThrow(evidence.task_id),
+    ]);
+    if (!partnerEmail) return;
+
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const greeting = partnerName ? `Olá, ${partnerName}` : 'Olá';
+    // La nota la escribe el admin en texto libre — se escapa para que no
+    // pueda romper el HTML del correo.
+    const note = evidence.review_note
+      ? `<p><strong>Comentário da equipe Kaspersky:</strong><br>${escapeHtml(evidence.review_note)}</p>`
+      : '';
+
+    await this.emailService.send({
+      to: [partnerEmail],
+      subject: 'Evidência não aprovada — Kaspersky Partner Quest',
+      html: `<p>${greeting},</p><p>Sua evidência para a tarefa <strong>${task.title}</strong> não foi aprovada.</p>${note}<p>Você pode enviar uma nova evidência pela plataforma.</p>${
+        frontendUrl
+          ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
+          : ''
+      }`,
+    });
   }
 
   /**
@@ -568,4 +602,13 @@ export class MilestonesService {
       evidenceByTask,
     };
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '<br>');
 }
