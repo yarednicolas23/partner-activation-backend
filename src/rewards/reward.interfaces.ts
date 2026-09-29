@@ -1,3 +1,5 @@
+import type { ShippingAddress } from '../partners/partner-profile.interface';
+
 export type RewardType = 'physical' | 'digital' | 'mixed';
 export type RedemptionStatus =
   'pending' | 'approved' | 'rejected' | 'fulfilled';
@@ -28,6 +30,8 @@ export interface RewardRedemption {
   reviewed_by: string | null;
   reviewed_at: string | null;
   requested_at: string;
+  // Snapshot do endereço confirmado no resgate (só rewards físicos/mistos).
+  shipping_address: ShippingAddress | null;
 }
 
 export interface RedemptionQueueItem extends RewardRedemption {

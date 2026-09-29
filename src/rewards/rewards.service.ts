@@ -19,6 +19,11 @@ import {
   RewardRedemption,
   RewardWithMilestone,
 } from './reward.interfaces';
+import {
+  PartnerProfile,
+  ShippingAddress,
+  shippingAddressFromProfile,
+} from '../partners/partner-profile.interface';
 
 /**
  * Elegibilidad de rewards por milestone completado (no por puntos/tiers —
@@ -40,7 +45,7 @@ export class RewardsService {
     return this.supabaseService.getClient();
   }
 
-  private readonly redemptionSelect = `id, reward_id, partner_id, status, admin_note, reviewed_by, reviewed_at, requested_at,
+  private readonly redemptionSelect = `id, reward_id, partner_id, status, admin_note, reviewed_by, reviewed_at, requested_at, shipping_address,
      reward:rewards(id, title, description, type, milestone_id, stock, image_url, is_active, created_at, updated_at),
      partner:profiles!reward_redemptions_partner_id_fkey(id, email, full_name)`;
 
@@ -135,6 +140,7 @@ export class RewardsService {
   async requestRedemption(
     partnerId: string,
     rewardId: string,
+    addressConfirmed: boolean,
   ): Promise<RewardRedemption> {
     const { data: reward, error: rewardError } = await this.client
       .from('rewards')
@@ -155,9 +161,18 @@ export class RewardsService {
       throw new ForbiddenException('Você ainda não desbloqueou este reward');
     }
 
+    const shippingAddress =
+      (reward as Reward).type === 'digital'
+        ? null
+        : await this.confirmedShippingAddress(partnerId, addressConfirmed);
+
     const { data, error } = await this.client
       .from('reward_redemptions')
-      .insert({ reward_id: rewardId, partner_id: partnerId })
+      .insert({
+        reward_id: rewardId,
+        partner_id: partnerId,
+        shipping_address: shippingAddress,
+      })
       .select()
       .single();
 
@@ -168,6 +183,37 @@ export class RewardsService {
       throw new InternalServerErrorException(error.message);
     }
     return data as RewardRedemption;
+  }
+
+  /**
+   * Rewards físicos/mistos precisam de endereço de entrega completo no
+   * perfil e da confirmação explícita do parceiro. O endereço é copiado
+   * para a solicitação — editar o perfil depois não altera este envio.
+   */
+  private async confirmedShippingAddress(
+    partnerId: string,
+    addressConfirmed: boolean,
+  ): Promise<ShippingAddress> {
+    const { data: profile, error } = await this.client
+      .from('profiles')
+      .select('*')
+      .eq('id', partnerId)
+      .single();
+
+    if (error || !profile) {
+      throw new NotFoundException('Perfil não encontrado');
+    }
+
+    const address = shippingAddressFromProfile(profile as PartnerProfile);
+    if (!address) {
+      throw new BadRequestException(
+        'Cadastre seu endereço de entrega no perfil antes de resgatar',
+      );
+    }
+    if (!addressConfirmed) {
+      throw new BadRequestException('Confirme o endereço de entrega');
+    }
+    return address;
   }
 
   async listMyRedemptions(partnerId: string): Promise<RedemptionQueueItem[]> {
@@ -264,6 +310,7 @@ export class RewardsService {
       reviewed_by: row.reviewed_by,
       reviewed_at: row.reviewed_at,
       requested_at: row.requested_at,
+      shipping_address: row.shipping_address,
       reward: row.reward,
       partner: row.partner,
     }));

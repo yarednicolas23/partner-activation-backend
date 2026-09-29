@@ -5,6 +5,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { Role } from '../auth/roles.enum';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PartnersService } from './partners.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('partners')
 export class PartnersController {
@@ -40,6 +42,15 @@ export class PartnersController {
   @UseGuards(JwtAuthGuard)
   getOwnProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.partnersService.getProfile(user.id);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  updateOwnProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.partnersService.updateProfile(user.id, dto);
   }
 
   @Get()

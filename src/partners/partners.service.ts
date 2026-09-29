@@ -11,6 +11,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EmailService } from '../email/email.service';
 import { accessLinkEmail, welcomeEmail } from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PartnerProfile } from './partner-profile.interface';
 
 /**
@@ -162,6 +163,54 @@ export class PartnersService {
     }
 
     return (data ?? []) as PartnerProfile[];
+  }
+
+  /**
+   * Edição do próprio perfil (dados de contato + endereço de entrega).
+   * "" em campos opcionais vira null; nome completo não pode ser apagado.
+   */
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<PartnerProfile> {
+    const columns: Record<keyof UpdateProfileDto, string> = {
+      fullName: 'full_name',
+      companyName: 'company_name',
+      phone: 'phone',
+      addressCep: 'address_cep',
+      addressStreet: 'address_street',
+      addressNumber: 'address_number',
+      addressComplement: 'address_complement',
+      addressNeighborhood: 'address_neighborhood',
+      addressCity: 'address_city',
+      addressState: 'address_state',
+    };
+
+    const updates: Record<string, string | null> = {};
+    for (const [field, column] of Object.entries(columns)) {
+      const value = dto[field as keyof UpdateProfileDto];
+      if (value !== undefined) updates[column] = value === '' ? null : value;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return this.getProfile(userId);
+    }
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new InternalServerErrorException(
+        error?.message ?? 'Não foi possível atualizar o perfil',
+      );
+    }
+
+    return data as PartnerProfile;
   }
 
   async getProfile(userId: string): Promise<PartnerProfile> {

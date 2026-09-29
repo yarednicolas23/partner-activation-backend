@@ -18,6 +18,7 @@ import { RewardsService } from './rewards.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
 import { UpdateRewardDto } from './dto/update-reward.dto';
 import { ReviewRedemptionDto } from './dto/review-redemption.dto';
+import { RedeemRewardDto } from './dto/redeem-reward.dto';
 import type { RedemptionStatus } from './reward.interfaces';
 
 @Controller('rewards')
@@ -62,8 +63,13 @@ export class RewardsController {
   requestRedemption(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
+    @Body() dto: RedeemRewardDto,
   ) {
-    return this.rewardsService.requestRedemption(user.id, id);
+    return this.rewardsService.requestRedemption(
+      user.id,
+      id,
+      dto.addressConfirmed ?? false,
+    );
   }
 
   @Get('redemptions/me')
