@@ -13,6 +13,12 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { S3Service } from '../aws/s3.service';
 import { EmailService } from '../email/email.service';
 import {
+  evidenceReceivedEmail,
+  evidenceReviewEmail,
+  stageCompletedAdminEmail,
+  stageCompletedEmail,
+} from '../email/templates';
+import {
   EvidenceQueueItem,
   EvidenceStatus,
   Milestone,
@@ -299,7 +305,7 @@ export class MilestonesService {
     values: { text_value: string | null; file_path: string | null },
   ): Promise<TaskEvidence> {
     const evidence = await this.upsertEvidence(task.id, partnerId, values);
-    this.notifyEvidenceSubmitted(partnerId, task).catch((error) =>
+    this.notifyEvidenceSubmitted(partnerId, task, evidence).catch((error) =>
       this.logger.error(
         `Falha ao notificar envio de evidência: ${(error as Error).message}`,
       ),
@@ -311,7 +317,7 @@ export class MilestonesService {
     const [{ data: partner }, { data: admins }] = await Promise.all([
       this.client
         .from('profiles')
-        .select('email, full_name')
+        .select('email, full_name, company_name')
         .eq('id', partnerId)
         .single(),
       this.client.from('profiles').select('email').eq('role', 'admin'),
@@ -320,6 +326,7 @@ export class MilestonesService {
     return {
       partnerEmail: partner?.email ?? null,
       partnerName: partner?.full_name ?? null,
+      partnerCompany: partner?.company_name ?? null,
       adminEmails: ((admins ?? []) as { email: string }[]).map((a) => a.email),
     };
   }
@@ -327,34 +334,49 @@ export class MilestonesService {
   private async notifyEvidenceSubmitted(
     partnerId: string,
     task: MilestoneTask,
+    evidence: TaskEvidence,
   ) {
-    const { partnerEmail, partnerName, adminEmails } =
-      await this.getNotificationRecipients(partnerId);
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partnerName ? `Olá, ${partnerName}` : 'Olá';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mails de evidência enviada não enviados',
+      );
+      return;
+    }
+
+    const [
+      { partnerEmail, partnerName, partnerCompany, adminEmails },
+      { data: milestone },
+    ] = await Promise.all([
+      this.getNotificationRecipients(partnerId),
+      this.client
+        .from('milestones')
+        .select('title')
+        .eq('id', task.milestone_id)
+        .single(),
+    ]);
 
     if (partnerEmail) {
-      await this.emailService.send({
-        to: [partnerEmail],
-        subject: 'Evidência recebida — Kaspersky Partner Quest',
-        html: `<p>${greeting},</p><p>Recebemos sua evidência para a tarefa <strong>${task.title}</strong>. Nossa equipe vai revisar em breve.</p>${
-          frontendUrl
-            ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
-            : ''
-        }`,
+      const { subject, html } = evidenceReceivedEmail({
+        missionTitle: task.title,
+        ctaUrl: `${frontendUrl}/dashboard`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: [partnerEmail], subject, html });
     }
 
     if (adminEmails.length > 0) {
-      await this.emailService.send({
-        to: adminEmails,
-        subject: 'Nova evidência para revisar',
-        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} enviou evidência para a tarefa <strong>${task.title}</strong>.</p>${
-          frontendUrl
-            ? `<p><a href="${frontendUrl}/admin/evidence">Revisar agora</a></p>`
-            : ''
-        }`,
+      const name = partnerName ?? partnerEmail ?? 'Parceiro';
+      const { subject, html } = evidenceReviewEmail({
+        partnerLabel: partnerCompany ? `${name} (${partnerCompany})` : name,
+        milestoneTitle: milestone?.title ?? '—',
+        missionTitle: task.title,
+        submittedAt: new Date(evidence.submitted_at),
+        ctaUrl: `${frontendUrl}/admin/evidence`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: adminEmails, subject, html });
     }
   }
 
@@ -415,7 +437,12 @@ export class MilestonesService {
       return;
     }
 
-    await this.notifyMilestoneCompleted(partnerId, milestone);
+    const lastOrderIndex = Math.max(...milestones.map((m) => m.order_index));
+    await this.notifyMilestoneCompleted(
+      partnerId,
+      milestone,
+      milestone.order_index === lastOrderIndex,
+    );
 
     const allMilestonesComplete = milestones.every((m) =>
       isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
@@ -428,34 +455,58 @@ export class MilestonesService {
   private async notifyMilestoneCompleted(
     partnerId: string,
     milestone: Milestone,
+    isLastStage: boolean,
   ) {
-    const { partnerEmail, partnerName, adminEmails } =
-      await this.getNotificationRecipients(partnerId);
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partnerName ? `Parabéns, ${partnerName}` : 'Parabéns';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mails de etapa concluída não enviados',
+      );
+      return;
+    }
+
+    const [
+      { partnerEmail, partnerName, partnerCompany, adminEmails },
+      { data: rewards },
+    ] = await Promise.all([
+      this.getNotificationRecipients(partnerId),
+      this.client
+        .from('rewards')
+        .select('title')
+        .eq('milestone_id', milestone.id)
+        .eq('is_active', true),
+    ]);
+    // Pendiente con Kaspersky: nombre propio de la conquista por etapa.
+    const achievementTitle = `Etapa ${milestone.order_index}: ${milestone.title}`;
 
     if (partnerEmail) {
-      await this.emailService.send({
-        to: [partnerEmail],
-        subject: `Etapa concluída: ${milestone.title}`,
-        html: `<p>${greeting}!</p><p>Você concluiu a etapa <strong>${milestone.title}</strong>.</p>${
-          frontendUrl
-            ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
-            : ''
-        }`,
+      const { subject, html } = stageCompletedEmail({
+        stageNumber: milestone.order_index,
+        stageTitle: milestone.title,
+        achievementTitle,
+        rewardTitles: ((rewards ?? []) as { title: string }[]).map(
+          (r) => r.title,
+        ),
+        ctaUrl: `${frontendUrl}/dashboard`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: [partnerEmail], subject, html });
     }
 
     if (adminEmails.length > 0) {
-      await this.emailService.send({
-        to: adminEmails,
-        subject: `Parceiro concluiu etapa: ${milestone.title}`,
-        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu a etapa <strong>${milestone.title}</strong>.</p>${
-          frontendUrl
-            ? `<p><a href="${frontendUrl}/admin/evidence">Ver detalhes</a></p>`
-            : ''
-        }`,
+      const name = partnerName ?? partnerEmail ?? 'Parceiro';
+      const { subject, html } = stageCompletedAdminEmail({
+        partnerLabel: partnerCompany ? `${name} (${partnerCompany})` : name,
+        stageNumber: milestone.order_index,
+        stageTitle: milestone.title,
+        achievementTitle,
+        completedAt: new Date(),
+        isLastStage,
+        ctaUrl: `${frontendUrl}/admin/partners/${partnerId}`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: adminEmails, subject, html });
     }
   }
 

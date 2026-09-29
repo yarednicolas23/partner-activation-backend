@@ -5,6 +5,7 @@ import {
   renderLayout,
   SIGNOFF,
   STYLES,
+  WELCOME_HERO,
 } from './layout';
 import { EmailTemplate } from './types';
 
@@ -36,7 +37,7 @@ export function welcomeEmail({
     html: renderLayout({
       preheader:
         'Sua jornada no Kaspersky Partner Quest começa agora. Acesse a plataforma e dê o primeiro passo.',
-      header: renderHero(assetsBaseUrl),
+      header: renderHero(assetsBaseUrl, WELCOME_HERO),
       body,
       assetsBaseUrl,
     }),

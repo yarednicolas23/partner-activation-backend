@@ -56,17 +56,30 @@ export function escapeHtml(value: string): string {
 }
 
 /**
- * Hero del programa: una sola imagen que ya incluye el logo Partner Quest y
- * el titular — por eso el `alt` repite el titular: si el cliente bloquea
- * imágenes, el mensaje se sigue leyendo.
+ * Hero de cada email: una sola imagen (1200px de ancho, 2x) que ya incluye el
+ * logo Partner Quest y el titular — por eso `alt` debe repetir el titular: si
+ * el cliente bloquea imágenes, el mensaje se sigue leyendo.
  */
-export function renderHero(assetsBaseUrl: string): string {
+export function renderHero(
+  assetsBaseUrl: string,
+  hero: {
+    file: string;
+    alt: string;
+    /** Alto a 600px de ancho (mitad del alto real de la imagen 2x). */
+    height?: number;
+  },
+): string {
   return `<tr>
-            <td style="background-color:#EEF3F2;">
-              <img src="${assetsBaseUrl}/welcome-hero.png" width="600" height="252" alt="Kaspersky Partner Quest — Sua jornada no Kaspersky Partner Quest começa agora." style="display:block;width:100%;max-width:600px;height:auto;border:0;font-family:${BRAND.bodyFont};font-size:18px;color:${BRAND.text};" />
+            <td style="background-color:#FFFFFF;">
+              <img src="${assetsBaseUrl}/${hero.file}" width="600" height="${hero.height ?? 252}" alt="${escapeHtml(hero.alt)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;font-family:${BRAND.bodyFont};font-size:18px;color:${BRAND.text};" />
             </td>
           </tr>`;
 }
+
+export const WELCOME_HERO = {
+  file: 'welcome-hero.png',
+  alt: 'Kaspersky Partner Quest — Sua jornada no Kaspersky Partner Quest começa agora.',
+};
 
 /** Botón principal; el bloque VML le da esquinas redondeadas en Outlook. */
 export function renderButton(url: string, label: string): string {
@@ -96,6 +109,21 @@ export const STYLES = {
 };
 
 export const SIGNOFF = `<p style="${STYLES.signoff}">Boa jornada!<br />Equipe Kaspersky Partner Quest</p>`;
+
+// Los partners (y quien revisa) están en Brasil: la fecha se muestra en
+// horario de São Paulo aunque el backend corra en UTC.
+export function formatDateTimeBR(date: Date): string {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get('day')}/${get('month')}/${get('year')} às ${get('hour')}:${get('minute')}`;
+}
 
 export interface LayoutParams {
   /** Texto oculto que los clientes muestran junto al asunto en la bandeja. */

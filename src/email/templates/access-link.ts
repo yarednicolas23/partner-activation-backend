@@ -6,6 +6,7 @@ import {
   renderLayout,
   SIGNOFF,
   STYLES,
+  WELCOME_HERO,
 } from './layout';
 import { EmailTemplate } from './types';
 
@@ -47,7 +48,7 @@ export function accessLinkEmail({
     html: renderLayout({
       preheader:
         'Seu link de acesso ao Kaspersky Partner Quest chegou. Ele é de uso único e expira em breve.',
-      header: renderHero(assetsBaseUrl),
+      header: renderHero(assetsBaseUrl, WELCOME_HERO),
       body,
       assetsBaseUrl,
     }),
