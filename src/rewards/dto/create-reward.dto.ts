@@ -19,8 +19,11 @@ export class CreateRewardDto {
   @IsString()
   description?: string;
 
+  // Ya no se expone en el panel admin: sin valor, el reward es físico
+  // (requiere dirección de envío al resgatar).
+  @IsOptional()
   @IsIn(['physical', 'digital', 'mixed'])
-  type: RewardType;
+  type?: RewardType;
 
   @IsUUID()
   milestoneId: string;

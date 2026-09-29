@@ -55,7 +55,7 @@ export class RewardsService {
       .insert({
         title: dto.title,
         description: dto.description ?? null,
-        type: dto.type,
+        type: dto.type ?? 'physical',
         milestone_id: dto.milestoneId,
         stock: dto.stock ?? null,
         image_url: dto.imageUrl || null,
@@ -95,6 +95,40 @@ export class RewardsService {
       throw new NotFoundException('Reward não encontrado');
     }
     return data as Reward;
+  }
+
+  /**
+   * Exclui um reward sem solicitações. Com solicitações, a exclusão
+   * apagaria em cascata o histórico de resgates (e endereços de envio) —
+   * nesse caso o admin deve desativar o reward em vez de excluir.
+   */
+  async deleteReward(id: string): Promise<void> {
+    const { count, error: countError } = await this.client
+      .from('reward_redemptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('reward_id', id);
+
+    if (countError) {
+      throw new InternalServerErrorException(countError.message);
+    }
+    if (count) {
+      throw new ConflictException(
+        'Este reward já tem solicitações de resgate — desative-o em vez de excluir',
+      );
+    }
+
+    const { data, error } = await this.client
+      .from('rewards')
+      .delete()
+      .eq('id', id)
+      .select('id');
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    if (!data?.length) {
+      throw new NotFoundException('Reward não encontrado');
+    }
   }
 
   async listAllRewards(): Promise<Reward[]> {

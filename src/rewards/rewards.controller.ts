@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -56,6 +59,14 @@ export class RewardsController {
   @Roles(Role.Admin)
   updateReward(@Param('id') id: string, @Body() dto: UpdateRewardDto) {
     return this.rewardsService.updateReward(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  deleteReward(@Param('id', ParseUUIDPipe) id: string) {
+    return this.rewardsService.deleteReward(id);
   }
 
   @Post(':id/redeem')
