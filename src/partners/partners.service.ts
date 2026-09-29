@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EmailService } from '../email/email.service';
+import { welcomeEmail } from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { PartnerProfile } from './partner-profile.interface';
 
@@ -79,16 +80,19 @@ export class PartnersService {
 
   private async notifyPartnerInvited(partner: PartnerProfile) {
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partner.full_name ? `Olá, ${partner.full_name}` : 'Olá';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de boas-vindas não enviado',
+      );
+      return;
+    }
 
-    await this.emailService.send({
-      to: [partner.email],
-      subject: 'Bem-vindo ao Kaspersky Partner Quest',
-      html: `<p>${greeting}!</p>
-        <p>Você foi cadastrado no Kaspersky Partner Quest. O programa tem 5 etapas — Descoberta, Capacitação, Engajamento, Prospecção e Conquista — que vão te guiar até a sua primeira venda.</p>
-        <p>Verifique seu e-mail: você recebeu (ou vai receber em instantes) um link de acesso separado para entrar na plataforma pela primeira vez.</p>
-        ${frontendUrl ? `<p><a href="${frontendUrl}/login">Acessar a plataforma</a></p>` : ''}`,
+    const { subject, html } = welcomeEmail({
+      ctaUrl: `${frontendUrl}/login`,
+      assetsBaseUrl,
     });
+    await this.emailService.send({ to: [partner.email], subject, html });
   }
 
   /**
