@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EmailService } from '../email/email.service';
-import { welcomeEmail } from '../email/templates';
+import { accessLinkEmail, welcomeEmail } from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { PartnerProfile } from './partner-profile.interface';
 
@@ -123,14 +123,23 @@ export class PartnersService {
       );
     }
 
-    const greeting = partner.full_name ? `Olá, ${partner.full_name}` : 'Olá';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!assetsBaseUrl) {
+      throw new InternalServerErrorException(
+        'FRONTEND_URL não configurado — não é possível montar o e-mail',
+      );
+    }
+
+    const { subject, html } = accessLinkEmail({
+      actionLink: data.properties.action_link,
+      loginUrl: frontendUrl && `${frontendUrl}/login`,
+      fullName: partner.full_name,
+      assetsBaseUrl,
+    });
     const sent = await this.emailService.send({
       to: [partner.email],
-      subject: 'Seu acesso ao Kaspersky Partner Quest',
-      html: `<p>${greeting}!</p>
-        <p>Você foi convidado para o Kaspersky Partner Quest. Use o link abaixo para acessar a plataforma — ele é de uso único e expira em breve.</p>
-        <p><a href="${data.properties.action_link}">Acessar a plataforma</a></p>
-        ${frontendUrl ? `<p>Se o link expirar, solicite um novo em <a href="${frontendUrl}/login">${frontendUrl}/login</a>.</p>` : ''}`,
+      subject,
+      html,
     });
 
     if (!sent) {

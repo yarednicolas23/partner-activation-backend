@@ -55,6 +55,48 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Hero del programa: una sola imagen que ya incluye el logo Partner Quest y
+ * el titular — por eso el `alt` repite el titular: si el cliente bloquea
+ * imágenes, el mensaje se sigue leyendo.
+ */
+export function renderHero(assetsBaseUrl: string): string {
+  return `<tr>
+            <td style="background-color:#EEF3F2;">
+              <img src="${assetsBaseUrl}/welcome-hero.png" width="600" height="252" alt="Kaspersky Partner Quest — Sua jornada no Kaspersky Partner Quest começa agora." style="display:block;width:100%;max-width:600px;height:auto;border:0;font-family:${BRAND.bodyFont};font-size:18px;color:${BRAND.text};" />
+            </td>
+          </tr>`;
+}
+
+/** Botón principal; el bloque VML le da esquinas redondeadas en Outlook. */
+export function renderButton(url: string, label: string): string {
+  const href = escapeHtml(url);
+  return `<table role="presentation" class="btn" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:380px;">
+                <tr>
+                  <td align="center" style="border-radius:10px;background-color:${BRAND.teal};">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:52px;v-text-anchor:middle;width:380px;" arcsize="20%" stroke="f" fillcolor="${BRAND.teal}">
+                      <center style="color:#FFFFFF;font-family:Arial,sans-serif;font-size:18px;">${label}</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="${href}" target="_blank" style="display:block;padding:15px 24px;font-family:${BRAND.bodyFont};font-size:18px;line-height:22px;color:#FFFFFF;text-decoration:none;border-radius:10px;">${label}</a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>`;
+}
+
+export const STYLES = {
+  h1: `margin:0 0 12px 0;font-family:${BRAND.headingFont};font-size:21px;line-height:28px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;color:${BRAND.text};`,
+  p: `margin:0 0 20px 0;font-size:16px;line-height:24px;color:${BRAND.text};`,
+  lead: `margin:0 0 28px 0;font-size:18px;line-height:26px;font-weight:bold;color:${BRAND.text};`,
+  note: `margin:14px 0 36px 0;font-size:13px;line-height:18px;font-style:italic;color:${BRAND.muted};`,
+  signoff: `margin:0;font-size:16px;line-height:22px;color:${BRAND.text};`,
+};
+
+export const SIGNOFF = `<p style="${STYLES.signoff}">Boa jornada!<br />Equipe Kaspersky Partner Quest</p>`;
+
 export interface LayoutParams {
   /** Texto oculto que los clientes muestran junto al asunto en la bandeja. */
   preheader: string;

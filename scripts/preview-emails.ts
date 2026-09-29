@@ -6,7 +6,7 @@
  */
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { welcomeEmail } from '../src/email/templates';
+import { accessLinkEmail, welcomeEmail } from '../src/email/templates';
 
 const assetsBaseUrl =
   process.env.EMAIL_ASSETS_URL ?? 'http://localhost:3000/emails';
@@ -15,6 +15,12 @@ const outDir = join(__dirname, '..', 'email-previews');
 const previews = {
   welcome: welcomeEmail({
     ctaUrl: 'http://localhost:3000/login',
+    assetsBaseUrl,
+  }),
+  'access-link': accessLinkEmail({
+    actionLink: 'http://localhost:3000/auth/callback#access_token=preview',
+    loginUrl: 'http://localhost:3000/login',
+    fullName: 'Maria Silva',
     assetsBaseUrl,
   }),
 };
