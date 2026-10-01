@@ -22,6 +22,7 @@ import { CreateRewardDto } from './dto/create-reward.dto';
 import { UpdateRewardDto } from './dto/update-reward.dto';
 import { ReviewRedemptionDto } from './dto/review-redemption.dto';
 import { RedeemRewardDto } from './dto/redeem-reward.dto';
+import { CreateImageUploadUrlDto } from './dto/create-image-upload-url.dto';
 import type { RedemptionStatus } from './reward.interfaces';
 
 @Controller('rewards')
@@ -33,6 +34,13 @@ export class RewardsController {
   @Roles(Role.Admin)
   createReward(@Body() dto: CreateRewardDto) {
     return this.rewardsService.createReward(dto);
+  }
+
+  @Post('images/upload-url')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  createImageUploadUrl(@Body() dto: CreateImageUploadUrlDto) {
+    return this.rewardsService.createImageUploadPost(dto.contentType);
   }
 
   @Get()

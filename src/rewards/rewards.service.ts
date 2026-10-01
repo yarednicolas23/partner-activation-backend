@@ -10,6 +10,8 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
 import { EmailService } from '../email/email.service';
+import { randomUUID } from 'crypto';
+import { REWARD_IMAGE_CONTENT_TYPES, S3Service } from '../aws/s3.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
 import { UpdateRewardDto } from './dto/update-reward.dto';
 import {
@@ -39,6 +41,7 @@ export class RewardsService {
     private readonly supabaseService: SupabaseService,
     private readonly milestonesService: MilestonesService,
     private readonly emailService: EmailService,
+    private readonly s3Service: S3Service,
   ) {}
 
   private get client() {
@@ -46,7 +49,7 @@ export class RewardsService {
   }
 
   private readonly redemptionSelect = `id, reward_id, partner_id, status, admin_note, reviewed_by, reviewed_at, requested_at, shipping_address,
-     reward:rewards(id, title, description, type, milestone_id, stock, image_url, is_active, created_at, updated_at),
+     reward:rewards(id, title, description, type, milestone_id, stock, image_url, image_key, is_active, created_at, updated_at),
      partner:profiles!reward_redemptions_partner_id_fkey(id, email, full_name)`;
 
   async createReward(dto: CreateRewardDto): Promise<Reward> {
@@ -58,7 +61,9 @@ export class RewardsService {
         type: dto.type ?? 'physical',
         milestone_id: dto.milestoneId,
         stock: dto.stock ?? null,
-        image_url: dto.imageUrl || null,
+        // Imagem enviada (image_key) tem prioridade sobre a estática.
+        image_url: dto.imageKey ? null : dto.imageUrl || null,
+        image_key: dto.imageKey || null,
         is_active: dto.isActive ?? true,
       })
       .select()
@@ -69,7 +74,7 @@ export class RewardsService {
         error?.message ?? 'Não foi possível criar o reward',
       );
     }
-    return data as Reward;
+    return this.withImageUrl(data as Reward);
   }
 
   async updateReward(id: string, dto: UpdateRewardDto): Promise<Reward> {
@@ -81,7 +86,14 @@ export class RewardsService {
     if (dto.type !== undefined) updates.type = dto.type;
     if (dto.milestoneId !== undefined) updates.milestone_id = dto.milestoneId;
     if (dto.stock !== undefined) updates.stock = dto.stock;
-    if (dto.imageUrl !== undefined) updates.image_url = dto.imageUrl || null;
+    if (dto.imageUrl !== undefined) {
+      updates.image_url = dto.imageUrl || null;
+      if (dto.imageUrl) updates.image_key = null;
+    }
+    if (dto.imageKey !== undefined) {
+      updates.image_key = dto.imageKey || null;
+      if (dto.imageKey) updates.image_url = null;
+    }
     if (dto.isActive !== undefined) updates.is_active = dto.isActive;
 
     const { data, error } = await this.client
@@ -94,7 +106,31 @@ export class RewardsService {
     if (error || !data) {
       throw new NotFoundException('Reward não encontrado');
     }
-    return data as Reward;
+    return this.withImageUrl(data as Reward);
+  }
+
+  /**
+   * Presigned POST para o admin enviar a imagem de um reward direto ao S3
+   * (mesmo bucket privado das evidências, prefixo "rewards/"). A key gerada
+   * aqui é a que o admin manda depois em imageKey ao criar/editar.
+   */
+  async createImageUploadPost(contentType: string) {
+    const extension = REWARD_IMAGE_CONTENT_TYPES[contentType];
+    const key = `rewards/${randomUUID()}.${extension ?? 'bin'}`;
+    const { url, fields } = await this.s3Service.createRewardImageUploadPost(
+      key,
+      contentType,
+    );
+    return { url, fields, key };
+  }
+
+  /** Troca image_url pela URL assinada quando a imagem está no S3. */
+  private async withImageUrl<T extends Reward>(reward: T): Promise<T> {
+    if (!reward.image_key) return reward;
+    return {
+      ...reward,
+      image_url: await this.s3Service.getSignedDisplayUrl(reward.image_key),
+    };
   }
 
   /**
@@ -140,7 +176,9 @@ export class RewardsService {
     if (error) {
       throw new InternalServerErrorException(error.message);
     }
-    return (data ?? []) as Reward[];
+    return Promise.all(
+      ((data ?? []) as Reward[]).map((r) => this.withImageUrl(r)),
+    );
   }
 
   async listEligibleRewards(partnerId: string): Promise<RewardWithMilestone[]> {
@@ -168,7 +206,9 @@ export class RewardsService {
       throw new InternalServerErrorException(error.message);
     }
 
-    return (data ?? []) as RewardWithMilestone[];
+    return Promise.all(
+      ((data ?? []) as RewardWithMilestone[]).map((r) => this.withImageUrl(r)),
+    );
   }
 
   async requestRedemption(

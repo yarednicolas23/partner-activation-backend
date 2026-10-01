@@ -11,7 +11,9 @@ export interface Reward {
   type: RewardType;
   milestone_id: string;
   stock: number | null;
+  // Com image_key, image_url é a URL assinada do S3 (resolvida pelo backend).
   image_url: string | null;
+  image_key: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

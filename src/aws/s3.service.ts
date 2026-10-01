@@ -11,6 +11,16 @@ export const EVIDENCE_ALLOWED_CONTENT_TYPES = [
 ];
 export const EVIDENCE_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
+// Imagens de rewards enviadas pelo admin (prefixo "rewards/" no mesmo bucket).
+export const REWARD_IMAGE_CONTENT_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+export const REWARD_IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+
+const HOUR_MS = 60 * 60 * 1000;
+
 /**
  * El SDK toma AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY solos del entorno (cadena
  * default de credenciales) — no se pasan a mano acá. Es lo que permite que el
@@ -36,11 +46,24 @@ export class S3Service {
       );
     }
 
+    return this.createUploadPost(key, contentType, EVIDENCE_MAX_BYTES);
+  }
+
+  async createRewardImageUploadPost(key: string, contentType: string) {
+    if (!(contentType in REWARD_IMAGE_CONTENT_TYPES)) {
+      throw new BadRequestException(
+        'Tipo de imagem não permitido. Aceitos: PNG, JPG, WEBP',
+      );
+    }
+    return this.createUploadPost(key, contentType, REWARD_IMAGE_MAX_BYTES);
+  }
+
+  private createUploadPost(key: string, contentType: string, maxBytes: number) {
     return createPresignedPost(this.client, {
       Bucket: this.bucket,
       Key: key,
       Conditions: [
-        ['content-length-range', 0, EVIDENCE_MAX_BYTES],
+        ['content-length-range', 0, maxBytes],
         ['eq', '$Content-Type', contentType],
       ],
       Fields: {
@@ -53,5 +76,20 @@ export class S3Service {
   async getSignedDownloadUrl(key: string): Promise<string> {
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     return getSignedUrl(this.client, command, { expiresIn: 300 });
+  }
+
+  /**
+   * URL assinada para exibir imagens (rewards) em <img>/next/image. A data de
+   * assinatura é arredondada para o início da hora e a validade cobre 2h:
+   * dentro da mesma hora a URL é idêntica, então navegador e otimizador do
+   * Next conseguem cachear a imagem em vez de baixá-la a cada render.
+   */
+  async getSignedDisplayUrl(key: string): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    const signingDate = new Date(Math.floor(Date.now() / HOUR_MS) * HOUR_MS);
+    return getSignedUrl(this.client, command, {
+      expiresIn: 2 * 60 * 60,
+      signingDate,
+    });
   }
 }

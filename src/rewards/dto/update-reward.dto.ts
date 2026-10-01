@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Min,
   MinLength,
 } from 'class-validator';
@@ -37,6 +38,14 @@ export class UpdateRewardDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  // Key devolvida por POST /rewards/images/upload-url; "" remove a imagem.
+  @IsOptional()
+  @IsString()
+  @Matches(/^(rewards\/[0-9a-f-]{36}\.(png|jpg|webp))?$/, {
+    message: 'imageKey inválido',
+  })
+  imageKey?: string;
 
   @IsOptional()
   @IsBoolean()
