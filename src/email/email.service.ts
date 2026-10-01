@@ -9,6 +9,8 @@ import { Resend } from 'resend';
  * una vez. Igual que antes, un fallo de envío nunca debe romper el flujo que
  * lo dispara — todos los llamadores lo tratan como fire-and-forget.
  */
+const MAX_RATE_LIMIT_RETRIES = 3;
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -31,7 +33,7 @@ export class EmailService {
       return false;
     }
 
-    const { error } = await this.client.emails.send({
+    const payload = {
       // Nombre visible temporal hasta que Kaspersky confirme el dominio
       // propio (noreply@kaspersky.com) — el address real sigue siendo el
       // remitente verificado en Resend, esto solo cambia el "From" que ve
@@ -40,7 +42,21 @@ export class EmailService {
       to: params.to,
       subject: params.subject,
       html: params.html,
-    });
+    };
+
+    // Resend limita los requests por segundo; un mismo evento puede disparar
+    // varios envíos seguidos (partner + cada admin), así que ante un 429 se
+    // espera un poco y se reintenta en vez de perder el correo.
+    let { error } = await this.client.emails.send(payload);
+    for (
+      let attempt = 1;
+      error?.name === 'rate_limit_exceeded' &&
+      attempt <= MAX_RATE_LIMIT_RETRIES;
+      attempt++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      ({ error } = await this.client.emails.send(payload));
+    }
 
     if (error) {
       this.logger.error(

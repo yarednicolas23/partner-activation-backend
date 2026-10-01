@@ -331,6 +331,24 @@ export class MilestonesService {
     };
   }
 
+  /**
+   * Un envío por admin en vez de un solo mensaje con todos en `to`: Resend
+   * rechaza el mensaje entero si una sola dirección falla (p. ej. remitente
+   * de pruebas onboarding@resend.dev, que solo entrega al dueño de la
+   * cuenta), y así además ningún admin ve las direcciones de los otros.
+   */
+  private async sendToAdmins(
+    adminEmails: string[],
+    subject: string,
+    html: string,
+  ) {
+    // En serie, no en paralelo, para no pasar el límite de requests/s de
+    // Resend cuando hay varios admins.
+    for (const email of adminEmails) {
+      await this.emailService.send({ to: [email], subject, html });
+    }
+  }
+
   private async notifyEvidenceSubmitted(
     partnerId: string,
     task: MilestoneTask,
@@ -376,7 +394,7 @@ export class MilestonesService {
         ctaUrl: `${frontendUrl}/admin/evidence`,
         assetsBaseUrl,
       });
-      await this.emailService.send({ to: adminEmails, subject, html });
+      await this.sendToAdmins(adminEmails, subject, html);
     }
   }
 
@@ -506,7 +524,7 @@ export class MilestonesService {
         ctaUrl: `${frontendUrl}/admin/partners/${partnerId}`,
         assetsBaseUrl,
       });
-      await this.emailService.send({ to: adminEmails, subject, html });
+      await this.sendToAdmins(adminEmails, subject, html);
     }
   }
 
@@ -527,11 +545,11 @@ export class MilestonesService {
     }
 
     if (adminEmails.length > 0) {
-      await this.emailService.send({
-        to: adminEmails,
-        subject: `Parceiro concluiu o programa: ${partnerName ?? partnerEmail ?? 'parceiro'}`,
-        html: `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todas as 5 etapas do programa.</p>`,
-      });
+      await this.sendToAdmins(
+        adminEmails,
+        `Parceiro concluiu o programa: ${partnerName ?? partnerEmail ?? 'parceiro'}`,
+        `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todas as 5 etapas do programa.</p>`,
+      );
     }
   }
 
