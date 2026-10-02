@@ -14,9 +14,6 @@ export class LoginLinkController {
   @Post('login-link')
   @HttpCode(204)
   sendLoginLink(@Body() dto: LoginLinkDto) {
-    return this.partnersService.sendLoginLink(
-      dto.email,
-      dto.next ?? '/dashboard',
-    );
+    return this.partnersService.sendLoginLink(dto.email);
   }
 }

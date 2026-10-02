@@ -108,7 +108,7 @@ export class PartnersService {
    */
   async resendInvite(partnerId: string): Promise<void> {
     const partner = await this.getProfile(partnerId);
-    const sent = await this.sendAccessLink(partner, '/dashboard', 'invite');
+    const sent = await this.sendAccessLink(partner, 'invite');
 
     if (!sent) {
       throw new BadGatewayException(
@@ -123,7 +123,7 @@ export class PartnersService {
    * Solo usuarios pre-registrados — un email desconocido no recibe nada,
    * pero la respuesta es la misma para no revelar qué emails existen.
    */
-  async sendLoginLink(email: string, next: string): Promise<void> {
+  async sendLoginLink(email: string): Promise<void> {
     const normalized = email.trim().toLowerCase();
     this.assertLoginLinkNotThrottled(normalized);
 
@@ -142,11 +142,7 @@ export class PartnersService {
       return;
     }
 
-    const sent = await this.sendAccessLink(
-      data as PartnerProfile,
-      next,
-      'login',
-    );
+    const sent = await this.sendAccessLink(data as PartnerProfile, 'login');
     if (!sent) {
       throw new BadGatewayException(
         'Não foi possível enviar o e-mail de acesso',
@@ -182,10 +178,11 @@ export class PartnersService {
 
   private async sendAccessLink(
     partner: PartnerProfile,
-    next: string,
     variant: 'invite' | 'login',
   ): Promise<boolean> {
     const frontendUrl = this.configService.get<string>('frontendUrl');
+    // O destino depende do rol, não de qual tela de login foi usada.
+    const next = partner.role === 'admin' ? '/admin/dashboard' : '/dashboard';
 
     const { data, error } = await this.supabaseService
       .getClient()
