@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PartnersService } from './partners.service';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
 
 @Controller('partners')
 export class PartnersController {
@@ -58,6 +59,25 @@ export class PartnersController {
   @Roles(Role.Admin)
   listPartners() {
     return this.partnersService.listPartners();
+  }
+
+  // Antes de ':id' para não ser capturada como um id.
+  @Get('admins')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  listAdmins() {
+    return this.partnersService.listAdmins();
+  }
+
+  @Patch(':id/role')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  updateRole(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateRoleDto,
+  ) {
+    return this.partnersService.updateRole(user.id, id, dto.role);
   }
 
   @Get(':id')

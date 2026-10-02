@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
@@ -280,6 +281,66 @@ export class PartnersService {
       );
     }
 
+    return data as PartnerProfile;
+  }
+
+  async listAdmins(): Promise<PartnerProfile[]> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .select('*')
+      .eq('role', 'admin')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    return (data ?? []) as PartnerProfile[];
+  }
+
+  /**
+   * Promove um usuário a admin ou remove o acesso de admin. O RolesGuard lê
+   * o rol da tabela profiles a cada request, então a mudança vale na hora.
+   * Proteções: ninguém remove o próprio acesso (evita se trancar fora) e o
+   * último admin não pode ser rebaixado.
+   */
+  async updateRole(
+    actorId: string,
+    targetId: string,
+    role: PartnerProfile['role'],
+  ): Promise<PartnerProfile> {
+    const target = await this.getProfile(targetId);
+    if (target.role === role) return target;
+
+    if (role === 'partner') {
+      if (targetId === actorId) {
+        throw new BadRequestException(
+          'Você não pode remover seu próprio acesso de administrador',
+        );
+      }
+      const admins = await this.listAdmins();
+      if (admins.length <= 1) {
+        throw new BadRequestException(
+          'É preciso manter pelo menos um administrador',
+        );
+      }
+    }
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .update({ role })
+      .eq('id', targetId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new InternalServerErrorException(
+        error?.message ?? 'Não foi possível atualizar o rol',
+      );
+    }
+
+    this.logger.log(`Rol de ${targetId} alterado para ${role} por ${actorId}`);
     return data as PartnerProfile;
   }
 
