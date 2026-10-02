@@ -30,6 +30,13 @@ const previews = {
     fullName: 'Maria Silva',
     assetsBaseUrl,
   }),
+  'login-link': accessLinkEmail({
+    actionLink: 'http://localhost:3000/auth/callback#access_token=preview',
+    loginUrl: 'http://localhost:3000/login',
+    fullName: 'Maria Silva',
+    assetsBaseUrl,
+    variant: 'login',
+  }),
   'evidence-received': evidenceReceivedEmail({
     missionTitle: 'Logo da Kaspersky no site do parceiro',
     ctaUrl: 'http://localhost:3000/dashboard',

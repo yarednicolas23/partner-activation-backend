@@ -17,14 +17,20 @@ export interface AccessLinkEmailParams {
   loginUrl?: string;
   fullName?: string | null;
   assetsBaseUrl: string;
+  /**
+   * `invite`: reenvío del admin ("reenviar convite").
+   * `login`: el propio usuario pidió el link en /login o /admin/login.
+   */
+  variant?: 'invite' | 'login';
 }
 
-/** Reenvío de acceso a un partner ya invitado (botón "reenviar" del admin). */
+/** Magic link con el diseño de la plataforma (reenvío del admin o login). */
 export function accessLinkEmail({
   actionLink,
   loginUrl,
   fullName,
   assetsBaseUrl,
+  variant = 'invite',
 }: AccessLinkEmailParams): EmailTemplate {
   const greeting = fullName ? `Olá, ${escapeHtml(fullName)}!` : 'Olá!';
   const expiry = loginUrl
@@ -35,8 +41,13 @@ export function accessLinkEmail({
                 Seu acesso ao <span style="color:${BRAND.teal};">Kaspersky Partner Quest</span>
               </h1>
               <p style="${STYLES.p}">${greeting}</p>
-              <p style="${STYLES.p}">Você foi convidado para o Kaspersky Partner Quest, o programa que acompanha cada passo da sua trajetória como parceiro Kaspersky ao longo de 5 etapas.</p>
-              <p style="${STYLES.lead}">Use o botão abaixo para entrar na plataforma e continuar sua jornada.</p>
+              ${
+                variant === 'login'
+                  ? `<p style="${STYLES.p}">Recebemos um pedido de acesso ao Kaspersky Partner Quest com este e-mail.</p>
+              <p style="${STYLES.lead}">Use o botão abaixo para entrar. Se não foi você, ignore esta mensagem — ninguém consegue entrar sem este link.</p>`
+                  : `<p style="${STYLES.p}">Você foi convidado para o Kaspersky Partner Quest, o programa que acompanha cada passo da sua trajetória como parceiro Kaspersky ao longo de 5 etapas.</p>
+              <p style="${STYLES.lead}">Use o botão abaixo para entrar na plataforma e continuar sua jornada.</p>`
+              }
 
               ${renderButton(actionLink, 'Acessar o Kaspersky Partner Quest')}
 

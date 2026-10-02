@@ -1,6 +1,8 @@
 import {
   BadGatewayException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -106,6 +108,83 @@ export class PartnersService {
    */
   async resendInvite(partnerId: string): Promise<void> {
     const partner = await this.getProfile(partnerId);
+    const sent = await this.sendAccessLink(partner, '/dashboard', 'invite');
+
+    if (!sent) {
+      throw new BadGatewayException(
+        'Não foi possível enviar o e-mail de acesso',
+      );
+    }
+  }
+
+  /**
+   * Login passwordless desde /login y /admin/login: mismo magic link y
+   * plantilla que el reenvío del admin, en vez del template de Supabase.
+   * Solo usuarios pre-registrados — un email desconocido no recibe nada,
+   * pero la respuesta es la misma para no revelar qué emails existen.
+   */
+  async sendLoginLink(email: string, next: string): Promise<void> {
+    const normalized = email.trim().toLowerCase();
+    this.assertLoginLinkNotThrottled(normalized);
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .select('*')
+      .ilike('email', normalized.replace(/[\\%_]/g, '\\$&'))
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    if (!data) {
+      this.logger.log('Login link pedido para e-mail não cadastrado');
+      return;
+    }
+
+    const sent = await this.sendAccessLink(
+      data as PartnerProfile,
+      next,
+      'login',
+    );
+    if (!sent) {
+      throw new BadGatewayException(
+        'Não foi possível enviar o e-mail de acesso',
+      );
+    }
+  }
+
+  // Throttle simples por e-mail (em memória, por instância): o equivalente
+  // ao "minimum interval per user" que o mailer do Supabase aplicava.
+  private readonly loginLinkRequestedAt = new Map<string, number>();
+  private static readonly LOGIN_LINK_INTERVAL_MS = 60_000;
+
+  private assertLoginLinkNotThrottled(email: string) {
+    const now = Date.now();
+    const last = this.loginLinkRequestedAt.get(email);
+    if (last && now - last < PartnersService.LOGIN_LINK_INTERVAL_MS) {
+      throw new HttpException(
+        'Aguarde um minuto antes de pedir um novo link',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    this.loginLinkRequestedAt.set(email, now);
+
+    // Evita que o Map cresça indefinidamente.
+    if (this.loginLinkRequestedAt.size > 1000) {
+      for (const [key, at] of this.loginLinkRequestedAt) {
+        if (now - at >= PartnersService.LOGIN_LINK_INTERVAL_MS) {
+          this.loginLinkRequestedAt.delete(key);
+        }
+      }
+    }
+  }
+
+  private async sendAccessLink(
+    partner: PartnerProfile,
+    next: string,
+    variant: 'invite' | 'login',
+  ): Promise<boolean> {
     const frontendUrl = this.configService.get<string>('frontendUrl');
 
     const { data, error } = await this.supabaseService
@@ -114,7 +193,9 @@ export class PartnersService {
         type: 'magiclink',
         email: partner.email,
         ...(frontendUrl && {
-          options: { redirectTo: `${frontendUrl}/auth/callback` },
+          options: {
+            redirectTo: `${frontendUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+          },
         }),
       });
 
@@ -131,23 +212,15 @@ export class PartnersService {
       );
     }
 
+    const loginPath = partner.role === 'admin' ? '/admin/login' : '/login';
     const { subject, html } = accessLinkEmail({
       actionLink: data.properties.action_link,
-      loginUrl: frontendUrl && `${frontendUrl}/login`,
+      loginUrl: frontendUrl && `${frontendUrl}${loginPath}`,
       fullName: partner.full_name,
       assetsBaseUrl,
+      variant,
     });
-    const sent = await this.emailService.send({
-      to: [partner.email],
-      subject,
-      html,
-    });
-
-    if (!sent) {
-      throw new BadGatewayException(
-        'Não foi possível enviar o e-mail de acesso',
-      );
-    }
+    return this.emailService.send({ to: [partner.email], subject, html });
   }
 
   async listPartners(): Promise<PartnerProfile[]> {
