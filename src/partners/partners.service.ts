@@ -12,7 +12,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EmailService } from '../email/email.service';
-import { accessLinkEmail, welcomeEmail } from '../email/templates';
+import {
+  accessLinkEmail,
+  adminAccessEmail,
+  welcomeEmail,
+} from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PartnerProfile } from './partner-profile.interface';
@@ -341,7 +345,39 @@ export class PartnersService {
     }
 
     this.logger.log(`Rol de ${targetId} alterado para ${role} por ${actorId}`);
+
+    if (role === 'admin') {
+      this.notifyAdminAccessGranted(data as PartnerProfile, actorId).catch(
+        (error) =>
+          this.logger.error(
+            `Falha ao enviar e-mail de acesso de admin: ${(error as Error).message}`,
+          ),
+      );
+    }
+
     return data as PartnerProfile;
+  }
+
+  private async notifyAdminAccessGranted(
+    admin: PartnerProfile,
+    actorId: string,
+  ) {
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de acesso de admin não enviado',
+      );
+      return;
+    }
+
+    const actor = await this.getProfile(actorId).catch(() => null);
+    const { subject, html } = adminAccessEmail({
+      grantedBy: actor ? (actor.full_name ?? actor.email) : null,
+      ctaUrl: `${frontendUrl}/admin/login`,
+      assetsBaseUrl,
+    });
+    await this.emailService.send({ to: [admin.email], subject, html });
   }
 
   async getProfile(userId: string): Promise<PartnerProfile> {

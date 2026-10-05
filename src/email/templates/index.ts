@@ -1,5 +1,6 @@
 export * from './types';
 export { welcomeEmail } from './welcome';
+export { adminAccessEmail } from './admin-access';
 export { accessLinkEmail } from './access-link';
 export { evidenceReceivedEmail } from './evidence-received';
 export { evidenceReviewEmail } from './evidence-review';
