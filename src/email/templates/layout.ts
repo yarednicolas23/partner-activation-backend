@@ -81,20 +81,17 @@ export const WELCOME_HERO = {
   alt: 'Kaspersky Partner Quest — Sua jornada no Kaspersky Partner Quest começa agora.',
 };
 
-/** Botón principal; el bloque VML le da esquinas redondeadas en Outlook. */
+/**
+ * Botón principal. Sin VML de tamaño fijo: el texto puede pasar a dos líneas
+ * en pantallas angostas en vez de cortarse. En Outlook de escritorio el
+ * padding va en la celda (mso-padding-alt) y las esquinas quedan rectas.
+ */
 export function renderButton(url: string, label: string): string {
   const href = escapeHtml(url);
   return `<table role="presentation" class="btn" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:380px;">
                 <tr>
-                  <td align="center" style="border-radius:10px;background-color:${BRAND.teal};">
-                    <!--[if mso]>
-                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:52px;v-text-anchor:middle;width:380px;" arcsize="20%" stroke="f" fillcolor="${BRAND.teal}">
-                      <center style="color:#FFFFFF;font-family:Arial,sans-serif;font-size:18px;">${label}</center>
-                    </v:roundrect>
-                    <![endif]-->
-                    <!--[if !mso]><!-->
-                    <a href="${href}" target="_blank" style="display:block;padding:15px 24px;font-family:${BRAND.bodyFont};font-size:18px;line-height:22px;color:#FFFFFF;text-decoration:none;border-radius:10px;">${label}</a>
-                    <!--<![endif]-->
+                  <td align="center" bgcolor="${BRAND.teal}" style="border-radius:10px;background-color:${BRAND.teal};mso-padding-alt:15px 24px;">
+                    <a href="${href}" target="_blank" style="display:block;padding:15px 24px;font-family:${BRAND.bodyFont};font-size:18px;line-height:22px;color:#FFFFFF;text-decoration:none;border-radius:10px;mso-padding-alt:0;">${label}</a>
                   </td>
                 </tr>
               </table>`;
@@ -164,8 +161,7 @@ export function renderLayout({
       .container { width: 100% !important; }
       .px { padding-left: 24px !important; padding-right: 24px !important; }
       .h1 { font-size: 22px !important; line-height: 28px !important; }
-      .btn a { display: block !important; }
-      .social-label { display: block !important; padding-bottom: 12px !important; }
+      .btn a { font-size: 16px !important; padding-left: 16px !important; padding-right: 16px !important; }
     }
   </style>
 </head>
@@ -174,7 +170,8 @@ export function renderLayout({
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND.pageBg};">
     <tr>
       <td align="center" style="padding:24px 12px;">
-        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background-color:#FFFFFF;border:1px solid ${BRAND.border};">
+        <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#FFFFFF;border:1px solid ${BRAND.border};">
           ${header}
           <tr>
             <td class="px" style="padding:40px 48px 32px 48px;font-family:${BRAND.bodyFont};color:${BRAND.text};">
@@ -183,18 +180,24 @@ export function renderLayout({
           </tr>
           <tr>
             <td class="px" style="padding:32px 48px 40px 48px;border-top:1px solid ${BRAND.border};">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <!-- Dos tablas align="left": lado a lado en escritorio y una debajo
+                   de la otra cuando no entran (celular), sin depender de media
+                   queries. Antes, con nowrap en una sola fila, el pie forzaba
+                   ~445px de ancho y el correo se cortaba en el celular. -->
+              <table role="presentation" align="left" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td class="social-label" style="padding-right:30px;font-family:${BRAND.bodyFont};font-size:18px;color:${BRAND.muted};white-space:nowrap;">Siga a Kaspersky:</td>
-                  <td>
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${socialIcons}</tr></table>
-                  </td>
+                  <td style="padding:0 30px 12px 0;font-family:${BRAND.bodyFont};font-size:18px;line-height:24px;color:${BRAND.muted};white-space:nowrap;">Siga a Kaspersky:</td>
                 </tr>
               </table>
+              <table role="presentation" align="left" cellpadding="0" cellspacing="0" border="0" style="margin-left:-10px;">
+                <tr>${socialIcons}</tr>
+              </table>
+              <div style="clear:both;line-height:0;font-size:0;">&nbsp;</div>
               <img src="${assetsBaseUrl}/kaspersky-logo.png" width="180" height="37" alt="Kaspersky" style="display:block;border:0;margin-top:36px;" />
             </td>
           </tr>
         </table>
+        <!--[if mso]></td></tr></table><![endif]-->
       </td>
     </tr>
   </table>
