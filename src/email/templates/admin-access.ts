@@ -5,6 +5,7 @@ import {
   renderHero,
   renderLayout,
   STYLES,
+  WELCOME_HERO,
 } from './layout';
 import { EmailTemplate } from './types';
 
@@ -18,7 +19,7 @@ export interface AdminAccessEmailParams {
 
 /**
  * Invitación al Portal Admin: se envía cuando un partner es promovido a
- * admin. Mismo formato que la bienvenida del partner (hero + texto + botón).
+ * admin. Mismo formato e imagen que la bienvenida del partner.
  */
 export function adminAccessEmail({
   grantedBy,
@@ -46,10 +47,7 @@ export function adminAccessEmail({
     html: renderLayout({
       preheader:
         'Seu acesso de administrador foi liberado. Acesse o Portal Admin para começar.',
-      header: renderHero(assetsBaseUrl, {
-        file: 'admin-access-hero.png',
-        alt: 'Kaspersky Partner Quest — Você agora é administrador do Partner Quest.',
-      }),
+      header: renderHero(assetsBaseUrl, WELCOME_HERO),
       body,
       assetsBaseUrl,
     }),
