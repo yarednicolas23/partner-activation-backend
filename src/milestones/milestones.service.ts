@@ -15,6 +15,7 @@ import { EmailService } from '../email/email.service';
 import {
   evidenceReceivedEmail,
   evidenceReviewEmail,
+  programCompletedEmail,
   stageCompletedAdminEmail,
   stageCompletedEmail,
 } from '../email/templates';
@@ -496,7 +497,7 @@ export class MilestonesService {
       isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
     );
     if (allMilestonesComplete) {
-      await this.notifyProgramCompleted(partnerId);
+      await this.notifyProgramCompleted(partnerId, milestones);
     }
   }
 
@@ -558,20 +559,29 @@ export class MilestonesService {
     }
   }
 
-  private async notifyProgramCompleted(partnerId: string) {
+  private async notifyProgramCompleted(
+    partnerId: string,
+    milestones: Milestone[],
+  ) {
     const { partnerEmail, partnerName, adminEmails } =
       await this.getNotificationRecipients(partnerId);
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partnerName ? `Parabéns, ${partnerName}` : 'Parabéns';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
 
-    if (partnerEmail) {
-      await this.emailService.send({
-        to: [partnerEmail],
-        subject: 'Você concluiu o Kaspersky Partner Quest!',
-        html: `<p>${greeting}! 🎉</p>
-          <p>Você concluiu todas as 5 etapas do Kaspersky Partner Quest — Descoberta, Capacitação, Engajamento, Prospecção e Conquista. Parabéns por essa conquista!</p>
-          ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>` : ''}`,
+    if (partnerEmail && frontendUrl && assetsBaseUrl) {
+      const { subject, html } = programCompletedEmail({
+        partnerName,
+        stages: [...milestones]
+          .sort((a, b) => a.order_index - b.order_index)
+          .map((m) => ({ number: m.order_index, title: m.title })),
+        ctaUrl: `${frontendUrl}/dashboard/rewards`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: [partnerEmail], subject, html });
+    } else if (partnerEmail) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de programa concluído não enviado',
+      );
     }
 
     if (adminEmails.length > 0) {

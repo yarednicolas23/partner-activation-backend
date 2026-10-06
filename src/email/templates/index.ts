@@ -6,3 +6,4 @@ export { evidenceReceivedEmail } from './evidence-received';
 export { evidenceReviewEmail } from './evidence-review';
 export { stageCompletedEmail } from './stage-completed';
 export { stageCompletedAdminEmail } from './stage-completed-admin';
+export { programCompletedEmail } from './program-completed';
