@@ -1,4 +1,9 @@
-import { Milestone, MilestoneTask, TaskEvidence } from './milestone.interfaces';
+import {
+  EvidenceInputType,
+  Milestone,
+  MilestoneTask,
+  TaskEvidence,
+} from './milestone.interfaces';
 
 /**
  * Lógica pura de desbloqueo/finalización de milestones — separada de
@@ -57,4 +62,59 @@ export function computeUnlockedMilestoneIds(
   }
 
   return unlocked;
+}
+
+export type ResolvedEvidenceInput =
+  | { ok: true; inputType: EvidenceInputType; optionKey: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Tipo concreto de comprovação que acepta la missão. En missões 'choice' lo
+ * define la opción elegida por el parceiro (ej. canal "Social Media" → link,
+ * "E-mail Marketing" → arquivo); en las demás, el propio evidence_type.
+ */
+export function resolveEvidenceInput(
+  task: Pick<MilestoneTask, 'evidence_type' | 'evidence_options'>,
+  optionKey?: string,
+): ResolvedEvidenceInput {
+  if (task.evidence_type === 'none') {
+    return { ok: false, error: 'Esta missão não exige comprovação' };
+  }
+  if (task.evidence_type !== 'choice') {
+    return { ok: true, inputType: task.evidence_type, optionKey: null };
+  }
+  if (!optionKey) {
+    return { ok: false, error: 'Escolha uma opção antes de enviar' };
+  }
+  const option = (task.evidence_options ?? []).find((o) => o.key === optionKey);
+  if (!option) {
+    return { ok: false, error: 'Opção inválida para esta missão' };
+  }
+  return { ok: true, inputType: option.evidence_type, optionKey: option.key };
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Mensaje de error para el parceiro, o null si el valor es válido. */
+export function validateTextEvidence(
+  inputType: Exclude<EvidenceInputType, 'file'>,
+  value: string,
+): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Preencha a comprovação antes de enviar';
+
+  if (inputType === 'email' && !EMAIL_PATTERN.test(trimmed)) {
+    return 'Digite um e-mail válido.';
+  }
+  if (inputType === 'url') {
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return 'Informe um link válido (https://...).';
+      }
+    } catch {
+      return 'Informe um link válido (https://...).';
+    }
+  }
+  return null;
 }

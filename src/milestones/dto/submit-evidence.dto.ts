@@ -10,4 +10,10 @@ export class SubmitEvidenceDto {
   @IsString()
   @MinLength(1)
   filePath?: string;
+
+  /** Obligatorio en missões 'choice': key de la opción elegida. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  optionKey?: string;
 }

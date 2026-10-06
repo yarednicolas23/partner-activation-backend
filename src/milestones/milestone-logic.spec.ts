@@ -1,6 +1,8 @@
 import {
   computeUnlockedMilestoneIds,
   isMilestoneComplete,
+  resolveEvidenceInput,
+  validateTextEvidence,
 } from './milestone-logic';
 import { Milestone, MilestoneTask, TaskEvidence } from './milestone.interfaces';
 
@@ -26,6 +28,8 @@ function task(
     title: id,
     description: null,
     evidence_type,
+    evidence_label: null,
+    evidence_options: null,
   };
 }
 
@@ -40,6 +44,7 @@ function evidence(
     partner_id: partnerId,
     text_value: null,
     file_path: null,
+    option_key: null,
     status,
     review_note: null,
     reviewed_by: null,
@@ -255,5 +260,79 @@ describe('computeUnlockedMilestoneIds', () => {
     expect(unlocked.has('m1')).toBe(true);
     expect(unlocked.has('m2')).toBe(true);
     expect(unlocked.has('m3')).toBe(true);
+  });
+});
+
+describe('resolveEvidenceInput', () => {
+  const choiceTask = {
+    evidence_type: 'choice' as const,
+    evidence_options: [
+      {
+        key: 'social_media',
+        label: 'Social Media',
+        evidence_type: 'url' as const,
+        evidence_label: 'Link da publicação.',
+      },
+      {
+        key: 'email_marketing',
+        label: 'E-mail Marketing',
+        evidence_type: 'file' as const,
+        evidence_label: 'Peça/arquivo.',
+      },
+    ],
+  };
+
+  it('uses the task evidence_type for non-choice missions', () => {
+    expect(
+      resolveEvidenceInput({ evidence_type: 'email', evidence_options: null }),
+    ).toEqual({ ok: true, inputType: 'email', optionKey: null });
+  });
+
+  it('rejects automatic missions', () => {
+    expect(
+      resolveEvidenceInput({ evidence_type: 'none', evidence_options: null })
+        .ok,
+    ).toBe(false);
+  });
+
+  it('requires an option on choice missions', () => {
+    expect(resolveEvidenceInput(choiceTask).ok).toBe(false);
+    expect(resolveEvidenceInput(choiceTask, 'unknown').ok).toBe(false);
+  });
+
+  it('takes the input type from the chosen option', () => {
+    expect(resolveEvidenceInput(choiceTask, 'social_media')).toEqual({
+      ok: true,
+      inputType: 'url',
+      optionKey: 'social_media',
+    });
+    expect(resolveEvidenceInput(choiceTask, 'email_marketing')).toEqual({
+      ok: true,
+      inputType: 'file',
+      optionKey: 'email_marketing',
+    });
+  });
+});
+
+describe('validateTextEvidence', () => {
+  it('rejects blank values', () => {
+    expect(validateTextEvidence('text', '   ')).not.toBeNull();
+  });
+
+  it('validates e-mails', () => {
+    expect(validateTextEvidence('email', 'voce@empresa.com.br')).toBeNull();
+    expect(validateTextEvidence('email', 'voce@empresa')).not.toBeNull();
+  });
+
+  it('accepts only http(s) links', () => {
+    expect(
+      validateTextEvidence('url', 'https://parceiro.com.br/kaspersky'),
+    ).toBeNull();
+    expect(validateTextEvidence('url', 'parceiro.com.br')).not.toBeNull();
+    expect(validateTextEvidence('url', 'javascript:alert(1)')).not.toBeNull();
+  });
+
+  it('accepts any non-empty text for numbers', () => {
+    expect(validateTextEvidence('text', 'OPP-12345')).toBeNull();
   });
 });

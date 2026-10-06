@@ -49,6 +49,7 @@ export class MilestonesController {
       user.id,
       taskId,
       dto.contentType,
+      dto.optionKey,
     );
   }
 
@@ -64,6 +65,7 @@ export class MilestonesController {
         user.id,
         taskId,
         dto.filePath,
+        dto.optionKey,
       );
     }
     if (!dto.textValue) {
@@ -73,6 +75,7 @@ export class MilestonesController {
       user.id,
       taskId,
       dto.textValue,
+      dto.optionKey,
     );
   }
 

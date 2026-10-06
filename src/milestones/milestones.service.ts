@@ -30,6 +30,8 @@ import {
 import {
   computeUnlockedMilestoneIds,
   isMilestoneComplete,
+  resolveEvidenceInput,
+  validateTextEvidence,
 } from './milestone-logic';
 
 /**
@@ -37,6 +39,12 @@ import {
  * the completion of the previous one"), calculado en el momento a partir de
  * `task_evidence` — sin tabla de estado redundante que se pueda desincronizar.
  */
+type EvidenceValues = {
+  text_value: string | null;
+  file_path: string | null;
+  option_key: string | null;
+};
+
 @Injectable()
 export class MilestonesService {
   private readonly logger = new Logger(MilestonesService.name);
@@ -79,14 +87,13 @@ export class MilestonesService {
 
     return milestones.map((milestone): MilestoneView => {
       if (!unlockedIds.has(milestone.id)) {
-        // Bloqueada, pero el título se muestra igual (AJUSTE 04 del cliente:
-        // ver los "next steps" aunque estén bloqueados) — description/tasks
-        // se quedan ocultos hasta desbloquear.
+        // Regra confirmada "Opção A" (documento de conteúdo das telas, ISOURCE):
+        // etapas bloqueadas exibem apenas "Etapa X de 5" — sem nome, descrição
+        // nem missões. Reemplaza el AJUSTE 04 anterior, que mostraba el título.
         return {
           id: milestone.id,
           order_index: milestone.order_index,
           locked: true,
-          title: milestone.title,
         };
       }
 
@@ -112,18 +119,26 @@ export class MilestonesService {
     partnerId: string,
     taskId: string,
     textValue: string,
+    optionKey?: string,
   ): Promise<TaskEvidence> {
     const task = await this.getTaskOrThrow(taskId);
-    if (task.evidence_type !== 'text') {
-      throw new BadRequestException(
-        'Esta tarefa não aceita evidência em texto',
-      );
+    const input = resolveEvidenceInput(task, optionKey);
+    if (!input.ok) {
+      throw new BadRequestException(input.error);
+    }
+    if (input.inputType === 'file') {
+      throw new BadRequestException('Esta missão exige o envio de um arquivo');
+    }
+    const invalid = validateTextEvidence(input.inputType, textValue);
+    if (invalid) {
+      throw new BadRequestException(invalid);
     }
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
     await this.assertEvidenceNotApproved(taskId, partnerId);
     return this.finalizeEvidenceSubmission(partnerId, task, {
-      text_value: textValue,
+      text_value: textValue.trim(),
       file_path: null,
+      option_key: input.optionKey,
     });
   }
 
@@ -131,11 +146,10 @@ export class MilestonesService {
     partnerId: string,
     taskId: string,
     contentType: string,
+    optionKey?: string,
   ) {
     const task = await this.getTaskOrThrow(taskId);
-    if (task.evidence_type !== 'file') {
-      throw new BadRequestException('Esta tarefa não aceita upload de arquivo');
-    }
+    this.assertAcceptsFile(task, optionKey);
     await this.assertMilestoneUnlocked(partnerId, task.milestone_id);
     await this.assertEvidenceNotApproved(taskId, partnerId);
 
@@ -152,11 +166,10 @@ export class MilestonesService {
     partnerId: string,
     taskId: string,
     filePath: string,
+    optionKey?: string,
   ): Promise<TaskEvidence> {
     const task = await this.getTaskOrThrow(taskId);
-    if (task.evidence_type !== 'file') {
-      throw new BadRequestException('Esta tarefa não aceita upload de arquivo');
-    }
+    const resolvedOptionKey = this.assertAcceptsFile(task, optionKey);
     // filePath debe ser el que este mesmo backend gerou em createFileUploadPost
     // (prefixado por partnerId/taskId) — não aceita um path arbitrário do cliente.
     if (!filePath.startsWith(`${partnerId}/${taskId}/`)) {
@@ -168,6 +181,7 @@ export class MilestonesService {
     return this.finalizeEvidenceSubmission(partnerId, task, {
       text_value: null,
       file_path: filePath,
+      option_key: resolvedOptionKey,
     });
   }
 
@@ -277,8 +291,23 @@ export class MilestonesService {
 
   // --- helpers ---
 
-  private readonly evidenceQueueSelect = `id, task_id, partner_id, text_value, file_path, status, review_note, reviewed_by, reviewed_at, submitted_at,
-     task:milestone_tasks(id, milestone_id, order_index, title, description, evidence_type, milestone:milestones(id, order_index, title, description)),
+  /** Devuelve la option_key a guardar (null fuera de missões 'choice'). */
+  private assertAcceptsFile(
+    task: MilestoneTask,
+    optionKey?: string,
+  ): string | null {
+    const input = resolveEvidenceInput(task, optionKey);
+    if (!input.ok) {
+      throw new BadRequestException(input.error);
+    }
+    if (input.inputType !== 'file') {
+      throw new BadRequestException('Esta missão não aceita upload de arquivo');
+    }
+    return input.optionKey;
+  }
+
+  private readonly evidenceQueueSelect = `id, task_id, partner_id, text_value, file_path, option_key, status, review_note, reviewed_by, reviewed_at, submitted_at,
+     task:milestone_tasks(id, milestone_id, order_index, title, description, evidence_type, evidence_label, evidence_options, milestone:milestones(id, order_index, title, description)),
      partner:profiles!task_evidence_partner_id_fkey(id, email, full_name)`;
 
   private mapEvidenceQueueRows(rows: any[]): EvidenceQueueItem[] {
@@ -288,6 +317,7 @@ export class MilestonesService {
       partner_id: row.partner_id,
       text_value: row.text_value,
       file_path: row.file_path,
+      option_key: row.option_key,
       status: row.status,
       review_note: row.review_note,
       reviewed_by: row.reviewed_by,
@@ -302,7 +332,7 @@ export class MilestonesService {
   private async finalizeEvidenceSubmission(
     partnerId: string,
     task: MilestoneTask,
-    values: { text_value: string | null; file_path: string | null },
+    values: EvidenceValues,
   ): Promise<TaskEvidence> {
     const evidence = await this.upsertEvidence(task.id, partnerId, values);
     this.notifyEvidenceSubmitted(partnerId, task, evidence).catch((error) =>
@@ -606,7 +636,7 @@ export class MilestonesService {
   private async upsertEvidence(
     taskId: string,
     partnerId: string,
-    values: { text_value: string | null; file_path: string | null },
+    values: EvidenceValues,
   ): Promise<TaskEvidence> {
     const { data, error } = await this.client
       .from('task_evidence')
