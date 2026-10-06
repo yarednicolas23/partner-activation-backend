@@ -1,6 +1,7 @@
 import {
   BRAND,
   escapeHtml,
+  infoRow,
   formatDateTimeBR,
   renderButton,
   renderHero,
@@ -21,22 +22,6 @@ export interface StageCompletedAdminEmailParams {
   /** Destino del botón (hoy `${FRONTEND_URL}/admin/partners/{id}`). */
   ctaUrl: string;
   assetsBaseUrl: string;
-}
-
-function infoRow(
-  assetsBaseUrl: string,
-  icon: string,
-  label: string,
-  value: string,
-): string {
-  return `<tr>
-                  <td width="48" style="width:48px;padding:0 0 18px 0;vertical-align:middle;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                      <td width="48" height="48" align="center" style="width:48px;height:48px;background-color:#EEF2F5;border-radius:10px;"><img src="${assetsBaseUrl}/icons/${icon}.png" width="26" height="26" alt="" style="display:block;border:0;" /></td>
-                    </tr></table>
-                  </td>
-                  <td style="padding:0 0 18px 18px;vertical-align:middle;font-family:${BRAND.bodyFont};font-size:15px;line-height:21px;color:${BRAND.text};">${label}<br /><strong>${escapeHtml(value)}</strong></td>
-                </tr>`;
 }
 
 /** Aviso a los admins: un partner completó una etapa (milestone). */

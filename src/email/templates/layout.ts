@@ -69,11 +69,62 @@ export function renderHero(
     height?: number;
   },
 ): string {
+  if (PENDING_HEROES.has(hero.file)) return '';
   return `<tr>
             <td style="background-color:#FFFFFF;">
               <img src="${assetsBaseUrl}/${hero.file}" width="600" height="${hero.height ?? 252}" alt="${escapeHtml(hero.alt)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;font-family:${BRAND.bodyFont};font-size:18px;color:${BRAND.text};" />
             </td>
           </tr>`;
+}
+
+/**
+ * Heroes que todavía no existen en frontend/public/emails: el correo sale sin
+ * imagen (en vez de con una imagen rota) hasta que se suba el archivo. Al
+ * subirlo, sacarlo de esta lista.
+ */
+export const PENDING_HEROES = new Set<string>([
+  'stage-5-completed-hero.png',
+  'evidence-rejected-hero.png',
+  'reminder-hero.png',
+  'redemption-approved-hero.png',
+  'redemption-rejected-hero.png',
+  'redemption-delivered-hero.png',
+  'program-completed-admin-hero.png',
+]);
+
+/** Ícono PNG en línea con el texto (frontend/public/emails/icons). */
+export function inlineIcon(
+  assetsBaseUrl: string,
+  icon: string,
+  size = 18,
+): string {
+  return `<img src="${assetsBaseUrl}/icons/${icon}.png" width="${size}" height="${size}" alt="" style="display:inline-block;vertical-align:middle;border:0;" />`;
+}
+
+/** Fila "ícono en caja gris + etiqueta + valor" de los correos de admin. */
+export function infoRow(
+  assetsBaseUrl: string,
+  icon: string,
+  label: string,
+  value: string,
+): string {
+  return `<tr>
+                  <td width="48" style="width:48px;padding:0 0 18px 0;vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td width="48" height="48" align="center" style="width:48px;height:48px;background-color:#EEF2F5;border-radius:10px;"><img src="${assetsBaseUrl}/icons/${icon}.png" width="26" height="26" alt="" style="display:block;border:0;" /></td>
+                    </tr></table>
+                  </td>
+                  <td style="padding:0 0 18px 18px;vertical-align:middle;font-family:${BRAND.bodyFont};font-size:15px;line-height:21px;color:${BRAND.text};">${label}<br /><strong>${escapeHtml(value)}</strong></td>
+                </tr>`;
+}
+
+/** Recuadro destacado (fondo gris claro) con un texto en negrita. */
+export function renderHighlight(html: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+                <tr>
+                  <td style="padding:14px 18px;background-color:#EEF2F5;font-family:${BRAND.bodyFont};font-size:16px;line-height:22px;color:${BRAND.text};">${html}</td>
+                </tr>
+              </table>`;
 }
 
 export const WELCOME_HERO = {

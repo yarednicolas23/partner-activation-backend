@@ -1,6 +1,7 @@
 import {
   BRAND,
   escapeHtml,
+  inlineIcon,
   renderButton,
   renderHero,
   renderLayout,
@@ -22,10 +23,6 @@ export interface StageCompletedEmailParams {
   /** Destino del botón (hoy `${FRONTEND_URL}/dashboard`). */
   ctaUrl: string;
   assetsBaseUrl: string;
-}
-
-function inlineIcon(assetsBaseUrl: string, icon: string, size = 18): string {
-  return `<img src="${assetsBaseUrl}/icons/${icon}.png" width="${size}" height="${size}" alt="" style="display:inline-block;vertical-align:middle;border:0;" />`;
 }
 
 /** Felicitación al partner por completar una etapa (milestone). */

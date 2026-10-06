@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
 import { EmailService } from '../email/email.service';
+import { reminderEmail } from '../email/templates';
 import { evaluateReminder } from './reminder-logic';
 
 interface PartnerRow {
@@ -81,14 +82,20 @@ export class RemindersService {
 
   private async sendReminder(partner: PartnerRow, pendingCount: number) {
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partner.full_name ? `Olá, ${partner.full_name}` : 'Olá';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — lembrete de missões não enviado',
+      );
+      return;
+    }
 
-    await this.emailService.send({
-      to: [partner.email],
-      subject: 'Você tem missões pendentes no Kaspersky Partner Quest',
-      html: `<p>${greeting},</p>
-        <p>Notamos que você tem ${pendingCount} tarefa${pendingCount > 1 ? 's' : ''} pendente${pendingCount > 1 ? 's' : ''} na sua etapa atual. Continue de onde parou para avançar no programa.</p>
-        ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver minhas missões</a></p>` : ''}`,
+    const { subject, html } = reminderEmail({
+      partnerName: partner.full_name,
+      pendingCount,
+      ctaUrl: `${frontendUrl}/dashboard`,
+      assetsBaseUrl,
     });
+    await this.emailService.send({ to: [partner.email], subject, html });
   }
 }
