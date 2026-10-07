@@ -42,18 +42,16 @@ export class PartnersService {
 
   async invitePartner(dto: CreatePartnerDto): Promise<PartnerProfile> {
     const client = this.supabaseService.getClient();
-    const frontendUrl = this.configService.get<string>('frontendUrl');
 
+    // createUser en vez de inviteUserByEmail: este último dispara además el
+    // correo de invitación del mailer de Supabase (texto plano, en inglés,
+    // sin logo), duplicando el de bienvenida que mandamos por Resend. El
+    // partner entra desde /login con el magic link de nuestra plantilla, que
+    // también confirma al usuario en el primer acceso.
     const { data: inviteData, error: inviteError } =
-      await client.auth.admin.inviteUserByEmail(dto.email, {
-        data: { full_name: dto.fullName },
-        // Sin esto, Supabase usa el Site URL global del proyecto — un solo
-        // valor compartido entre local/Railway/AWS. Con FRONTEND_URL
-        // seteado por entorno, cada deploy manda el link al dominio
-        // correcto sin depender de mantener el Site URL sincronizado.
-        ...(frontendUrl && {
-          redirectTo: `${frontendUrl}/auth/callback`,
-        }),
+      await client.auth.admin.createUser({
+        email: dto.email,
+        user_metadata: { full_name: dto.fullName },
       });
 
     if (inviteError) {
@@ -105,8 +103,8 @@ export class PartnersService {
   }
 
   /**
-   * Reenvía el acceso a un partner ya invitado (inviteUserByEmail devuelve
-   * 422 si el email existe). Usa generateLink en vez de signInWithOtp: no
+   * Reenvía el acceso a un partner ya invitado (createUser devuelve 422 si
+   * el email existe). Usa generateLink en vez de signInWithOtp: no
    * pasa por el mailer de Supabase (límite por hora, template en inglés) y
    * el link de tipo magiclink también confirma a un invitado que nunca
    * entró. Igual que la invitación, es un link del flujo implícito — lo
