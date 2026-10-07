@@ -84,10 +84,6 @@ export function renderHero(
  */
 export const PENDING_HEROES = new Set<string>([
   'evidence-rejected-hero.png',
-  'reminder-hero.png',
-  'redemption-approved-hero.png',
-  'redemption-rejected-hero.png',
-  'redemption-delivered-hero.png',
   'program-completed-admin-hero.png',
 ]);
 
