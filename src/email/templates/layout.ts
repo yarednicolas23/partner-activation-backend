@@ -85,6 +85,7 @@ export function renderHero(
 export const PENDING_HEROES = new Set<string>([
   'evidence-rejected-hero.png',
   'evidence-approved-hero.png',
+  'redemption-admin-hero.png',
 ]);
 
 /** Ícono PNG en línea con el texto (frontend/public/emails/icons). */

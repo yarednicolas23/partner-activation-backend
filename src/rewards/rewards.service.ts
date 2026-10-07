@@ -11,7 +11,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
-import { redemptionStatusEmail } from '../email/templates';
+import {
+  redemptionAdminEmail,
+  redemptionStatusEmail,
+} from '../email/templates';
 import { randomUUID } from 'crypto';
 import { REWARD_IMAGE_CONTENT_TYPES, S3Service } from '../aws/s3.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
@@ -21,6 +24,7 @@ import {
   RedemptionStatus,
   Reward,
   RewardRedemption,
+  RewardType,
   RewardWithMilestone,
 } from './reward.interfaces';
 import {
@@ -53,7 +57,7 @@ export class RewardsService {
 
   private readonly redemptionSelect = `id, reward_id, partner_id, status, admin_note, reviewed_by, reviewed_at, requested_at, shipping_address,
      reward:rewards(id, title, description, type, milestone_id, stock, image_url, image_key, is_active, created_at, updated_at),
-     partner:profiles!reward_redemptions_partner_id_fkey(id, email, full_name)`;
+     partner:profiles!reward_redemptions_partner_id_fkey(id, email, full_name, company_name, phone)`;
 
   async createReward(dto: CreateRewardDto): Promise<Reward> {
     const { data, error } = await this.client
@@ -259,7 +263,14 @@ export class RewardsService {
       }
       throw new InternalServerErrorException(error.message);
     }
-    return data as RewardRedemption;
+
+    const redemption = data as RewardRedemption;
+    this.notifyAdminsOfRedemption(redemption.id, 'requested').catch((err) =>
+      this.logger.error(
+        `Falha ao avisar admins da solicitação de resgate: ${(err as Error).message}`,
+      ),
+    );
+    return redemption;
   }
 
   /**
@@ -383,6 +394,74 @@ export class RewardsService {
       subject,
       html,
     });
+
+    // Con la aprobación, logística recibe los datos de envío + la nota.
+    if (redemption.status === 'approved') {
+      await this.notifyAdminsOfRedemption(redemption.id, 'approved');
+    }
+  }
+
+  private static readonly REWARD_TYPE_LABEL: Record<RewardType, string> = {
+    physical: 'Físico',
+    digital: 'Digital',
+    mixed: 'Misto',
+  };
+
+  /**
+   * Aviso a todos los admins: al solicitar (para revisarlo sin tener que
+   * entrar al sistema) y al aprobar (datos de envío + nota de aprobación).
+   */
+  private async notifyAdminsOfRedemption(
+    redemptionId: string,
+    event: 'requested' | 'approved',
+  ) {
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — aviso de resgate aos admins não enviado',
+      );
+      return;
+    }
+
+    const [{ data: row }, { data: admins }] = await Promise.all([
+      this.client
+        .from('reward_redemptions')
+        .select(this.redemptionSelect)
+        .eq('id', redemptionId)
+        .single(),
+      this.client.from('profiles').select('email').eq('role', 'admin'),
+    ]);
+    if (!row) return;
+    const adminEmails = ((admins ?? []) as { email: string }[]).map(
+      (a) => a.email,
+    );
+    if (adminEmails.length === 0) return;
+
+    const [redemption] = this.mapRedemptionRows([row]);
+    const { subject, html } = redemptionAdminEmail({
+      event,
+      partnerName: redemption.partner.full_name ?? redemption.partner.email,
+      companyName: redemption.partner.company_name,
+      partnerEmail: redemption.partner.email,
+      partnerPhone: redemption.partner.phone,
+      rewardTitle: redemption.reward.title,
+      rewardTypeLabel: RewardsService.REWARD_TYPE_LABEL[redemption.reward.type],
+      shippingAddress: redemption.shipping_address,
+      adminNote: redemption.admin_note,
+      eventAt: new Date(
+        event === 'approved'
+          ? (redemption.reviewed_at ?? Date.now())
+          : redemption.requested_at,
+      ),
+      ctaUrl: `${frontendUrl}/admin/rewards`,
+      assetsBaseUrl,
+    });
+
+    // En serie para no pasar el límite de requests/s de Resend.
+    for (const email of adminEmails) {
+      await this.emailService.send({ to: [email], subject, html });
+    }
   }
 
   private mapRedemptionRows(rows: any[]): RedemptionQueueItem[] {

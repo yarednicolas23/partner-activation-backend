@@ -38,5 +38,11 @@ export interface RewardRedemption {
 
 export interface RedemptionQueueItem extends RewardRedemption {
   reward: Reward;
-  partner: { id: string; email: string; full_name: string | null };
+  partner: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    company_name: string | null;
+    phone: string | null;
+  };
 }
