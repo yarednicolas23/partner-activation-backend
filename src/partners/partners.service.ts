@@ -15,6 +15,7 @@ import { EmailService } from '../email/email.service';
 import {
   accessLinkEmail,
   adminAccessEmail,
+  loginLinkEmail,
   welcomeEmail,
 } from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
@@ -214,14 +215,21 @@ export class PartnersService {
       );
     }
 
-    const loginPath = partner.role === 'admin' ? '/admin/login' : '/login';
-    const { subject, html } = accessLinkEmail({
-      actionLink: data.properties.action_link,
-      loginUrl: frontendUrl && `${frontendUrl}${loginPath}`,
-      fullName: partner.full_name,
-      assetsBaseUrl,
-      variant,
-    });
+    const role = partner.role === 'admin' ? 'admin' : 'partner';
+    const loginPath = role === 'admin' ? '/admin/login' : '/login';
+    const { subject, html } =
+      variant === 'login'
+        ? loginLinkEmail({
+            actionLink: data.properties.action_link,
+            role,
+            assetsBaseUrl,
+          })
+        : accessLinkEmail({
+            actionLink: data.properties.action_link,
+            loginUrl: frontendUrl && `${frontendUrl}${loginPath}`,
+            fullName: partner.full_name,
+            assetsBaseUrl,
+          });
     return this.emailService.send({ to: [partner.email], subject, html });
   }
 

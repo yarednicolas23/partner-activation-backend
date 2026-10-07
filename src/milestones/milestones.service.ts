@@ -490,15 +490,18 @@ export class MilestonesService {
     }
 
     const lastOrderIndex = Math.max(...milestones.map((m) => m.order_index));
+    const allMilestonesComplete = milestones.every((m) =>
+      isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
+    );
     await this.notifyMilestoneCompleted(
       partnerId,
       milestone,
       milestone.order_index === lastOrderIndex,
+      // Al cerrar el programa el partner recibe solo "jornada completa"
+      // (notifyProgramCompleted), no además el de "etapa concluída".
+      allMilestonesComplete,
     );
 
-    const allMilestonesComplete = milestones.every((m) =>
-      isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
-    );
     if (allMilestonesComplete) {
       await this.notifyProgramCompleted(partnerId, milestones);
     }
@@ -508,6 +511,7 @@ export class MilestonesService {
     partnerId: string,
     milestone: Milestone,
     isLastStage: boolean,
+    skipPartnerEmail: boolean,
   ) {
     const frontendUrl = this.configService.get<string>('frontendUrl');
     const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
@@ -532,7 +536,7 @@ export class MilestonesService {
     // Pendiente con Kaspersky: nombre propio de la conquista por etapa.
     const achievementTitle = `Etapa ${milestone.order_index}: ${milestone.title}`;
 
-    if (partnerEmail) {
+    if (partnerEmail && !skipPartnerEmail) {
       const { subject, html } = stageCompletedEmail({
         stageNumber: milestone.order_index,
         stageTitle: milestone.title,
@@ -574,10 +578,8 @@ export class MilestonesService {
     if (partnerEmail && frontendUrl && assetsBaseUrl) {
       const { subject, html } = programCompletedEmail({
         partnerName,
-        stages: [...milestones]
-          .sort((a, b) => a.order_index - b.order_index)
-          .map((m) => ({ number: m.order_index, title: m.title })),
-        ctaUrl: `${frontendUrl}/dashboard/rewards`,
+        stageCount: milestones.length,
+        ctaUrl: `${frontendUrl}/dashboard`,
         assetsBaseUrl,
       });
       await this.emailService.send({ to: [partnerEmail], subject, html });

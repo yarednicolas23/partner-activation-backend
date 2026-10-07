@@ -8,6 +8,8 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import {
   accessLinkEmail,
+  loginLinkEmail,
+  programCompletedEmail,
   evidenceReceivedEmail,
   evidenceReviewEmail,
   stageCompletedAdminEmail,
@@ -30,12 +32,15 @@ const previews = {
     fullName: 'Maria Silva',
     assetsBaseUrl,
   }),
-  'login-link': accessLinkEmail({
+  'login-link-partner': loginLinkEmail({
     actionLink: 'http://localhost:3000/auth/callback#access_token=preview',
-    loginUrl: 'http://localhost:3000/login',
-    fullName: 'Maria Silva',
+    role: 'partner',
     assetsBaseUrl,
-    variant: 'login',
+  }),
+  'login-link-admin': loginLinkEmail({
+    actionLink: 'http://localhost:3000/auth/callback#access_token=preview',
+    role: 'admin',
+    assetsBaseUrl,
   }),
   'evidence-received': evidenceReceivedEmail({
     missionTitle: 'Logo da Kaspersky no site do parceiro',
@@ -66,6 +71,12 @@ const previews = {
     completedAt: new Date('2026-09-28T21:15:00Z'),
     isLastStage: false,
     ctaUrl: 'http://localhost:3000/admin/partners/preview',
+    assetsBaseUrl,
+  }),
+  'program-completed': programCompletedEmail({
+    partnerName: 'Maria Silva',
+    stageCount: 5,
+    ctaUrl: 'http://localhost:3000/dashboard',
     assetsBaseUrl,
   }),
 };

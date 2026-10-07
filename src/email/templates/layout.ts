@@ -83,7 +83,6 @@ export function renderHero(
  * subirlo, sacarlo de esta lista.
  */
 export const PENDING_HEROES = new Set<string>([
-  'stage-5-completed-hero.png',
   'evidence-rejected-hero.png',
   'reminder-hero.png',
   'redemption-approved-hero.png',
@@ -158,6 +157,8 @@ export const STYLES = {
 
 export const SIGNOFF = `<p style="${STYLES.signoff}">Boa jornada!<br />Equipe Kaspersky Partner Quest</p>`;
 
+export const SIGNOFF_ADMIN = `<p style="margin:0;font-size:14px;line-height:20px;color:${BRAND.text};">Kaspersky Partner Quest · Portal Admin</p>`;
+
 // Los partners (y quien revisa) están en Brasil: la fecha se muestra en
 // horario de São Paulo aunque el backend corra en UTC.
 export function formatDateTimeBR(date: Date): string {
@@ -213,6 +214,7 @@ export function renderLayout({
       .px { padding-left: 24px !important; padding-right: 24px !important; }
       .h1 { font-size: 22px !important; line-height: 28px !important; }
       .btn a { font-size: 16px !important; padding-left: 16px !important; padding-right: 16px !important; }
+      .hide-mobile { display: none !important; }
     }
   </style>
 </head>
