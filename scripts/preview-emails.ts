@@ -9,7 +9,9 @@ import { join } from 'path';
 import {
   accessLinkEmail,
   loginLinkEmail,
+  programCompletedAdminEmail,
   programCompletedEmail,
+  evidenceApprovedEmail,
   evidenceReceivedEmail,
   evidenceReviewEmail,
   stageCompletedAdminEmail,
@@ -61,6 +63,7 @@ const previews = {
     achievementTitle: 'Etapa 1: Descoberta',
     rewardTitles: ['Kit onboarding'],
     ctaUrl: 'http://localhost:3000/dashboard',
+    rewardsUrl: 'http://localhost:3000/dashboard/rewards',
     assetsBaseUrl,
   }),
   'stage-completed-admin': stageCompletedAdminEmail({
@@ -77,6 +80,20 @@ const previews = {
     partnerName: 'Maria Silva',
     stageCount: 5,
     ctaUrl: 'http://localhost:3000/dashboard',
+    assetsBaseUrl,
+  }),
+  'evidence-approved': evidenceApprovedEmail({
+    partnerName: 'Maria Silva',
+    missionTitle: 'Logo da Kaspersky no site do parceiro',
+    ctaUrl: 'http://localhost:3000/dashboard',
+    assetsBaseUrl,
+  }),
+  'program-completed-admin': programCompletedAdminEmail({
+    partnerName: 'Maria Silva',
+    partnerLabel: 'Maria Silva (Tech Solutions Ltda.)',
+    stageCount: 5,
+    completedAt: new Date('2026-10-06T21:15:00Z'),
+    ctaUrl: 'http://localhost:3000/admin/partners/preview',
     assetsBaseUrl,
   }),
 };

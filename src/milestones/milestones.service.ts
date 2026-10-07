@@ -13,6 +13,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { S3Service } from '../aws/s3.service';
 import { EmailService } from '../email/email.service';
 import {
+  evidenceApprovedEmail,
   evidenceReceivedEmail,
   evidenceRejectedEmail,
   evidenceReviewEmail,
@@ -268,15 +269,12 @@ export class MilestonesService {
 
     const evidence = data as TaskEvidence;
 
-    // Solo dispara el mail de milestone completo en la transición a
-    // "approved" — evita reenviarlo si algo ya aprobado se re-guarda.
+    // Solo en la transición a "approved" — evita reenviar los mails si algo
+    // ya aprobado se re-guarda.
     if (status === 'approved' && existing?.status !== 'approved') {
-      this.checkMilestoneCompletion(
-        evidence.partner_id,
-        evidence.task_id,
-      ).catch((error) =>
+      this.handleEvidenceApproved(evidence).catch((error) =>
         this.logger.error(
-          `Falha ao verificar conclusão de milestone: ${(error as Error).message}`,
+          `Falha ao notificar evidência aprovada: ${(error as Error).message}`,
         ),
       );
     }
@@ -431,6 +429,31 @@ export class MilestonesService {
     }
   }
 
+  private async notifyEvidenceApproved(evidence: TaskEvidence) {
+    const [{ partnerEmail, partnerName }, task] = await Promise.all([
+      this.getNotificationRecipients(evidence.partner_id),
+      this.getTaskOrThrow(evidence.task_id),
+    ]);
+    if (!partnerEmail) return;
+
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de comprovação aprovada não enviado',
+      );
+      return;
+    }
+
+    const { subject, html } = evidenceApprovedEmail({
+      partnerName,
+      missionTitle: task.title,
+      ctaUrl: `${frontendUrl}/dashboard`,
+      assetsBaseUrl,
+    });
+    await this.emailService.send({ to: [partnerEmail], subject, html });
+  }
+
   private async notifyEvidenceRejected(evidence: TaskEvidence) {
     const [{ partnerEmail, partnerName }, task] = await Promise.all([
       this.getNotificationRecipients(evidence.partner_id),
@@ -476,17 +499,36 @@ export class MilestonesService {
     return completed;
   }
 
-  private async checkMilestoneCompletion(partnerId: string, taskId: string) {
+  /**
+   * Si la aprobación completa la etapa, el partner recibe "etapa concluída"
+   * (o "jornada completa"); si no, recibe "comprovação aprovada". Nunca los
+   * dos por la misma aprobación.
+   */
+  private async handleEvidenceApproved(evidence: TaskEvidence) {
+    const completedStage = await this.checkMilestoneCompletion(
+      evidence.partner_id,
+      evidence.task_id,
+    );
+    if (!completedStage) {
+      await this.notifyEvidenceApproved(evidence);
+    }
+  }
+
+  /** Devuelve true si la etapa de la tarea quedó completa (y notificó). */
+  private async checkMilestoneCompletion(
+    partnerId: string,
+    taskId: string,
+  ): Promise<boolean> {
     const task = await this.getTaskOrThrow(taskId);
     const { milestones, tasksByMilestone, evidenceByTask } =
       await this.loadMilestoneData(partnerId);
     const milestone = milestones.find((m) => m.id === task.milestone_id);
     if (!milestone) {
-      return;
+      return false;
     }
 
     if (!isMilestoneComplete(milestone.id, tasksByMilestone, evidenceByTask)) {
-      return;
+      return false;
     }
 
     const lastOrderIndex = Math.max(...milestones.map((m) => m.order_index));
@@ -505,6 +547,7 @@ export class MilestonesService {
     if (allMilestonesComplete) {
       await this.notifyProgramCompleted(partnerId, milestones);
     }
+    return true;
   }
 
   private async notifyMilestoneCompleted(
@@ -545,6 +588,7 @@ export class MilestonesService {
           (r) => r.title,
         ),
         ctaUrl: `${frontendUrl}/dashboard`,
+        rewardsUrl: `${frontendUrl}/dashboard/rewards`,
         assetsBaseUrl,
       });
       await this.emailService.send({ to: [partnerEmail], subject, html });
@@ -592,6 +636,7 @@ export class MilestonesService {
     if (adminEmails.length > 0 && frontendUrl && assetsBaseUrl) {
       const name = partnerName ?? partnerEmail ?? 'Parceiro';
       const { subject, html } = programCompletedAdminEmail({
+        partnerName: name,
         partnerLabel: partnerCompany ? `${name} (${partnerCompany})` : name,
         stageCount: milestones.length,
         completedAt: new Date(),

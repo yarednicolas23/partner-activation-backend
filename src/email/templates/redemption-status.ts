@@ -38,7 +38,7 @@ const COPY: Record<
     subject: 'Seu resgate foi aprovado',
     title: 'Resgate',
     highlight: 'aprovado!',
-    text: 'Sua solicitação foi aprovada e sua recompensa já está em preparação para envio.',
+    text: 'Sua solicitação foi aprovada e seu brinde está a caminho! Ele já está em preparação para envio.',
     hero: 'redemption-approved-hero.png',
     heroAlt: 'Kaspersky Partner Quest — Seu resgate foi aprovado.',
   },

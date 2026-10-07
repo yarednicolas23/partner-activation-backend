@@ -4,6 +4,7 @@ export { adminAccessEmail } from './admin-access';
 export { accessLinkEmail } from './access-link';
 export { loginLinkEmail } from './login-link';
 export { evidenceReceivedEmail } from './evidence-received';
+export { evidenceApprovedEmail } from './evidence-approved';
 export { evidenceReviewEmail } from './evidence-review';
 export { stageCompletedEmail } from './stage-completed';
 export { stageCompletedAdminEmail } from './stage-completed-admin';
