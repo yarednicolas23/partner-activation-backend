@@ -9,7 +9,9 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MilestonesService } from '../milestones/milestones.service';
+import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
+import { redemptionStatusEmail } from '../email/templates';
 import { randomUUID } from 'crypto';
 import { REWARD_IMAGE_CONTENT_TYPES, S3Service } from '../aws/s3.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
@@ -42,6 +44,7 @@ export class RewardsService {
     private readonly milestonesService: MilestonesService,
     private readonly emailService: EmailService,
     private readonly s3Service: S3Service,
+    private readonly configService: ConfigService,
   ) {}
 
   private get client() {
@@ -355,22 +358,30 @@ export class RewardsService {
   }
 
   private async notifyRedemptionStatusChanged(redemption: RedemptionQueueItem) {
-    const statusLabel: Record<RedemptionStatus, string> = {
-      pending: 'Pendente',
-      approved: 'Aprovado',
-      rejected: 'Rejeitado',
-      fulfilled: 'Entregue',
-    };
-    const greeting = redemption.partner.full_name
-      ? `Olá, ${redemption.partner.full_name}`
-      : 'Olá';
+    // Solo los estados que el admin puede asignar (ReviewRedemptionDto).
+    if (redemption.status === 'pending') return;
 
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de status de resgate não enviado',
+      );
+      return;
+    }
+
+    const { subject, html } = redemptionStatusEmail({
+      partnerName: redemption.partner.full_name,
+      rewardTitle: redemption.reward.title,
+      status: redemption.status,
+      adminNote: redemption.admin_note,
+      ctaUrl: `${frontendUrl}/dashboard/rewards`,
+      assetsBaseUrl,
+    });
     await this.emailService.send({
       to: [redemption.partner.email],
-      subject: `Sua solicitação de resgate: ${statusLabel[redemption.status]}`,
-      html: `<p>${greeting},</p>
-        <p>O status da sua solicitação para <strong>${redemption.reward.title}</strong> foi atualizado para <strong>${statusLabel[redemption.status]}</strong>.</p>
-        ${redemption.admin_note ? `<p>Nota: ${redemption.admin_note}</p>` : ''}`,
+      subject,
+      html,
     });
   }
 

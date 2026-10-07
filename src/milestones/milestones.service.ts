@@ -14,7 +14,10 @@ import { S3Service } from '../aws/s3.service';
 import { EmailService } from '../email/email.service';
 import {
   evidenceReceivedEmail,
+  evidenceRejectedEmail,
   evidenceReviewEmail,
+  programCompletedAdminEmail,
+  programCompletedEmail,
   stageCompletedAdminEmail,
   stageCompletedEmail,
 } from '../email/templates';
@@ -436,22 +439,23 @@ export class MilestonesService {
     if (!partnerEmail) return;
 
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partnerName ? `Olá, ${partnerName}` : 'Olá';
-    // La nota la escribe el admin en texto libre — se escapa para que no
-    // pueda romper el HTML del correo.
-    const note = evidence.review_note
-      ? `<p><strong>Comentário da equipe Kaspersky:</strong><br>${escapeHtml(evidence.review_note)}</p>`
-      : '';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
+    if (!frontendUrl || !assetsBaseUrl) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de comprovação não aprovada não enviado',
+      );
+      return;
+    }
 
-    await this.emailService.send({
-      to: [partnerEmail],
-      subject: 'Evidência não aprovada — Kaspersky Partner Quest',
-      html: `<p>${greeting},</p><p>Sua evidência para a tarefa <strong>${task.title}</strong> não foi aprovada.</p>${note}<p>Você pode enviar uma nova evidência pela plataforma.</p>${
-        frontendUrl
-          ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>`
-          : ''
-      }`,
+    // La nota la escribe el admin en texto libre: la plantilla la escapa.
+    const { subject, html } = evidenceRejectedEmail({
+      partnerName,
+      missionTitle: task.title,
+      reviewNote: evidence.review_note,
+      ctaUrl: `${frontendUrl}/dashboard`,
+      assetsBaseUrl,
     });
+    await this.emailService.send({ to: [partnerEmail], subject, html });
   }
 
   /**
@@ -496,7 +500,7 @@ export class MilestonesService {
       isMilestoneComplete(m.id, tasksByMilestone, evidenceByTask),
     );
     if (allMilestonesComplete) {
-      await this.notifyProgramCompleted(partnerId);
+      await this.notifyProgramCompleted(partnerId, milestones);
     }
   }
 
@@ -558,28 +562,41 @@ export class MilestonesService {
     }
   }
 
-  private async notifyProgramCompleted(partnerId: string) {
-    const { partnerEmail, partnerName, adminEmails } =
+  private async notifyProgramCompleted(
+    partnerId: string,
+    milestones: Milestone[],
+  ) {
+    const { partnerEmail, partnerName, partnerCompany, adminEmails } =
       await this.getNotificationRecipients(partnerId);
     const frontendUrl = this.configService.get<string>('frontendUrl');
-    const greeting = partnerName ? `Parabéns, ${partnerName}` : 'Parabéns';
+    const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
 
-    if (partnerEmail) {
-      await this.emailService.send({
-        to: [partnerEmail],
-        subject: 'Você concluiu o Kaspersky Partner Quest!',
-        html: `<p>${greeting}! 🎉</p>
-          <p>Você concluiu todas as 5 etapas do Kaspersky Partner Quest — Descoberta, Capacitação, Engajamento, Prospecção e Conquista. Parabéns por essa conquista!</p>
-          ${frontendUrl ? `<p><a href="${frontendUrl}/dashboard">Ver meu painel</a></p>` : ''}`,
+    if (partnerEmail && frontendUrl && assetsBaseUrl) {
+      const { subject, html } = programCompletedEmail({
+        partnerName,
+        stages: [...milestones]
+          .sort((a, b) => a.order_index - b.order_index)
+          .map((m) => ({ number: m.order_index, title: m.title })),
+        ctaUrl: `${frontendUrl}/dashboard/rewards`,
+        assetsBaseUrl,
       });
+      await this.emailService.send({ to: [partnerEmail], subject, html });
+    } else if (partnerEmail) {
+      this.logger.warn(
+        'FRONTEND_URL não configurado — e-mail de programa concluído não enviado',
+      );
     }
 
-    if (adminEmails.length > 0) {
-      await this.sendToAdmins(
-        adminEmails,
-        `Parceiro concluiu o programa: ${partnerName ?? partnerEmail ?? 'parceiro'}`,
-        `<p>${partnerName ?? partnerEmail ?? 'Um parceiro'} concluiu todas as 5 etapas do programa.</p>`,
-      );
+    if (adminEmails.length > 0 && frontendUrl && assetsBaseUrl) {
+      const name = partnerName ?? partnerEmail ?? 'Parceiro';
+      const { subject, html } = programCompletedAdminEmail({
+        partnerLabel: partnerCompany ? `${name} (${partnerCompany})` : name,
+        stageCount: milestones.length,
+        completedAt: new Date(),
+        ctaUrl: `${frontendUrl}/admin/partners/${partnerId}`,
+        assetsBaseUrl,
+      });
+      await this.sendToAdmins(adminEmails, subject, html);
     }
   }
 
@@ -701,13 +718,4 @@ export class MilestonesService {
       evidenceByTask,
     };
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '<br>');
 }

@@ -6,3 +6,8 @@ export { evidenceReceivedEmail } from './evidence-received';
 export { evidenceReviewEmail } from './evidence-review';
 export { stageCompletedEmail } from './stage-completed';
 export { stageCompletedAdminEmail } from './stage-completed-admin';
+export { programCompletedEmail } from './program-completed';
+export { evidenceRejectedEmail } from './evidence-rejected';
+export { reminderEmail } from './reminder';
+export { redemptionStatusEmail } from './redemption-status';
+export { programCompletedAdminEmail } from './program-completed-admin';
