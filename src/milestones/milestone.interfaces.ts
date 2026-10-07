@@ -65,3 +65,35 @@ export interface EvidenceQueueItem extends TaskEvidence {
   milestone: Milestone;
   partner: { id: string; email: string; full_name: string | null };
 }
+
+export type StageHistoryStatus =
+  'locked' | 'not_started' | 'in_progress' | 'completed';
+
+/** Missão no histórico do admin: só o resumo da evidência, sem conteúdo. */
+export interface StageHistoryTask {
+  id: string;
+  order_index: number;
+  title: string;
+  evidence_type: EvidenceType;
+  evidence: Pick<
+    TaskEvidence,
+    'id' | 'status' | 'submitted_at' | 'reviewed_at' | 'review_note'
+  > | null;
+}
+
+/**
+ * Etapa no histórico do admin. Diferente da visão do parceiro, mostra título
+ * e missões mesmo das etapas bloqueadas. As datas saem de task_evidence, que
+ * guarda só a última tentativa por missão (reenvio sobrescreve a linha).
+ */
+export interface StageHistory {
+  id: string;
+  order_index: number;
+  title: string;
+  status: StageHistoryStatus;
+  /** Primeiro envio de evidência na etapa. */
+  started_at: string | null;
+  /** Última aprovação que fechou a etapa (só quando completa). */
+  completed_at: string | null;
+  tasks: StageHistoryTask[];
+}

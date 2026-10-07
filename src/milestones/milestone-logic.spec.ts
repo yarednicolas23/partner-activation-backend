@@ -1,4 +1,5 @@
 import {
+  buildStageHistory,
   computeUnlockedMilestoneIds,
   isMilestoneComplete,
   resolveEvidenceInput,
@@ -334,5 +335,96 @@ describe('validateTextEvidence', () => {
 
   it('accepts any non-empty text for numbers', () => {
     expect(validateTextEvidence('text', 'OPP-12345')).toBeNull();
+  });
+});
+
+describe('buildStageHistory', () => {
+  const milestones = [
+    milestone('m1', 1),
+    milestone('m2', 2),
+    milestone('m3', 3),
+  ];
+  const tasks = tasksByMilestoneOf([
+    task('t1', 'm1', 1),
+    task('t2', 'm1', 2),
+    task('t3', 'm2', 1),
+    task('t3-auto', 'm2', 2, 'none'),
+    task('t4', 'm3', 1),
+  ]);
+
+  function at(
+    row: TaskEvidence,
+    submitted_at: string,
+    reviewed_at: string | null = null,
+  ): TaskEvidence {
+    return { ...row, submitted_at, reviewed_at };
+  }
+
+  it('marks the first stage not started and the rest locked with no evidence', () => {
+    const history = buildStageHistory(milestones, tasks, new Map());
+    expect(history.map((s) => s.status)).toEqual([
+      'not_started',
+      'locked',
+      'locked',
+    ]);
+    expect(history[0].started_at).toBeNull();
+    expect(history[0].tasks.map((t) => t.evidence)).toEqual([null, null]);
+  });
+
+  it('dates a completed stage from its first submission to its last approval', () => {
+    const history = buildStageHistory(
+      milestones,
+      tasks,
+      evidenceByTaskOf([
+        at(
+          evidence('t1', 'approved'),
+          '2026-05-02T10:00:00Z',
+          '2026-05-05T10:00:00Z',
+        ),
+        at(
+          evidence('t2', 'approved'),
+          '2026-05-01T10:00:00Z',
+          '2026-05-09T10:00:00Z',
+        ),
+        at(evidence('t3', 'pending'), '2026-05-10T10:00:00Z'),
+      ]),
+    );
+
+    expect(history[0]).toMatchObject({
+      status: 'completed',
+      started_at: '2026-05-01T10:00:00Z',
+      completed_at: '2026-05-09T10:00:00Z',
+    });
+    expect(history[1]).toMatchObject({
+      status: 'in_progress',
+      started_at: '2026-05-10T10:00:00Z',
+      completed_at: null,
+    });
+    expect(history[2].status).toBe('locked');
+  });
+
+  it('exposes only the evidence summary, not its content', () => {
+    const row = {
+      ...at(
+        evidence('t1', 'rejected'),
+        '2026-05-02T10:00:00Z',
+        '2026-05-03T10:00:00Z',
+      ),
+      text_value: 'secret',
+      file_path: 'evidence/file.pdf',
+      review_note: 'Arquivo ilegível',
+    };
+    const [stage] = buildStageHistory(
+      milestones,
+      tasks,
+      evidenceByTaskOf([row]),
+    );
+    expect(stage.tasks[0].evidence).toEqual({
+      id: row.id,
+      status: 'rejected',
+      submitted_at: '2026-05-02T10:00:00Z',
+      reviewed_at: '2026-05-03T10:00:00Z',
+      review_note: 'Arquivo ilegível',
+    });
   });
 });

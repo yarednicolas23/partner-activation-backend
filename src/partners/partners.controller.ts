@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -78,6 +79,17 @@ export class PartnersController {
     @Body() dto: UpdateRoleDto,
   ) {
     return this.partnersService.updateRole(user.id, id, dto.role);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  deletePartner(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.partnersService.deletePartner(user.id, id);
   }
 
   @Get(':id')
