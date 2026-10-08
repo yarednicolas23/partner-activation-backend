@@ -28,10 +28,12 @@ import {
   Milestone,
   MilestoneTask,
   MilestoneView,
+  StageHistory,
   TaskEvidence,
   TaskWithEvidence,
 } from './milestone.interfaces';
 import {
+  buildStageHistory,
   computeUnlockedMilestoneIds,
   isMilestoneComplete,
   resolveEvidenceInput,
@@ -207,6 +209,12 @@ export class MilestonesService {
     }
 
     return this.mapEvidenceQueueRows(data ?? []);
+  }
+
+  async getPartnerStageHistory(partnerId: string): Promise<StageHistory[]> {
+    const { milestones, tasksByMilestone, evidenceByTask } =
+      await this.loadMilestoneData(partnerId);
+    return buildStageHistory(milestones, tasksByMilestone, evidenceByTask);
   }
 
   async listPartnerEvidenceHistory(

@@ -99,6 +99,13 @@ export class MilestonesController {
     return this.milestonesService.listPartnerEvidenceHistory(partnerId);
   }
 
+  @Get('milestones/admin/partners/:partnerId/stages')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  getPartnerStageHistory(@Param('partnerId') partnerId: string) {
+    return this.milestonesService.getPartnerStageHistory(partnerId);
+  }
+
   @Get('milestones/admin/evidence/:id/file-url')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)

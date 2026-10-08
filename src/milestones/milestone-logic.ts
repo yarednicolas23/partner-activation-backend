@@ -2,6 +2,8 @@ import {
   EvidenceInputType,
   Milestone,
   MilestoneTask,
+  StageHistory,
+  StageHistoryStatus,
   TaskEvidence,
 } from './milestone.interfaces';
 
@@ -62,6 +64,84 @@ export function computeUnlockedMilestoneIds(
   }
 
   return unlocked;
+}
+
+/**
+ * Histórico por etapa para o admin: status de cada etapa e as datas de
+ * início (primeiro envio) e conclusão (última aprovação das missões
+ * obrigatórias) derivadas de task_evidence.
+ */
+export function buildStageHistory(
+  milestones: Milestone[],
+  tasksByMilestone: Map<string, MilestoneTask[]>,
+  evidenceByTask: Map<string, TaskEvidence>,
+): StageHistory[] {
+  const unlocked = computeUnlockedMilestoneIds(
+    milestones,
+    tasksByMilestone,
+    evidenceByTask,
+  );
+
+  return milestones.map((milestone) => {
+    const tasks = tasksByMilestone.get(milestone.id) ?? [];
+    const evidence = tasks
+      .map((t) => evidenceByTask.get(t.id))
+      .filter((e): e is TaskEvidence => e !== undefined);
+
+    const complete = isMilestoneComplete(
+      milestone.id,
+      tasksByMilestone,
+      evidenceByTask,
+    );
+    let status: StageHistoryStatus;
+    if (complete) status = 'completed';
+    else if (!unlocked.has(milestone.id)) status = 'locked';
+    else if (evidence.length > 0) status = 'in_progress';
+    else status = 'not_started';
+
+    const submittedDates = evidence.map((e) => e.submitted_at);
+    const approvedDates = tasks
+      .filter((t) => t.evidence_type !== 'none')
+      .map((t) => evidenceByTask.get(t.id)?.reviewed_at)
+      .filter((d): d is string => !!d);
+
+    return {
+      id: milestone.id,
+      order_index: milestone.order_index,
+      title: milestone.title,
+      status,
+      started_at: earliest(submittedDates),
+      completed_at: complete ? latest(approvedDates) : null,
+      tasks: tasks.map((task) => {
+        const e = evidenceByTask.get(task.id);
+        return {
+          id: task.id,
+          order_index: task.order_index,
+          title: task.title,
+          evidence_type: task.evidence_type,
+          evidence: e
+            ? {
+                id: e.id,
+                status: e.status,
+                submitted_at: e.submitted_at,
+                reviewed_at: e.reviewed_at,
+                review_note: e.review_note,
+              }
+            : null,
+        };
+      }),
+    };
+  });
+}
+
+function earliest(dates: string[]): string | null {
+  if (dates.length === 0) return null;
+  return dates.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a));
+}
+
+function latest(dates: string[]): string | null {
+  if (dates.length === 0) return null;
+  return dates.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
 }
 
 export type ResolvedEvidenceInput =

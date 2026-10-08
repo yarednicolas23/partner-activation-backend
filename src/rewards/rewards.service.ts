@@ -257,20 +257,63 @@ export class RewardsService {
       .select()
       .single();
 
+    let redemption = data as RewardRedemption | null;
     if (error) {
-      if (error.code === '23505') {
-        throw new ConflictException('Você já solicitou este reward');
+      if (error.code !== '23505') {
+        throw new InternalServerErrorException(error.message);
       }
-      throw new InternalServerErrorException(error.message);
+      redemption = await this.reopenRejectedRedemption(
+        partnerId,
+        rewardId,
+        shippingAddress,
+      );
+    }
+    if (!redemption) {
+      throw new InternalServerErrorException('Não foi possível solicitar');
     }
 
-    const redemption = data as RewardRedemption;
     this.notifyAdminsOfRedemption(redemption.id, 'requested').catch((err) =>
       this.logger.error(
         `Falha ao avisar admins da solicitação de resgate: ${(err as Error).message}`,
       ),
     );
     return redemption;
+  }
+
+  /**
+   * Já existe uma solicitação deste reward (unique reward_id + partner_id).
+   * Se foi rejeitada, o parceiro pode pedir de novo: a mesma linha volta a
+   * 'pending' como um pedido novo — igual ao reenvio de evidência após uma
+   * rejeição. Em qualquer outro status continua sendo duplicada.
+   */
+  private async reopenRejectedRedemption(
+    partnerId: string,
+    rewardId: string,
+    shippingAddress: ShippingAddress | null,
+  ): Promise<RewardRedemption> {
+    const { data, error } = await this.client
+      .from('reward_redemptions')
+      .update({
+        status: 'pending',
+        admin_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        requested_at: new Date().toISOString(),
+        shipping_address: shippingAddress,
+      })
+      .eq('reward_id', rewardId)
+      .eq('partner_id', partnerId)
+      .eq('status', 'rejected')
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    if (!data) {
+      throw new ConflictException('Você já solicitou este reward');
+    }
+    return data as RewardRedemption;
   }
 
   /**

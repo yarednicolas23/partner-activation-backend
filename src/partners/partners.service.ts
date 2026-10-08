@@ -364,6 +364,49 @@ export class PartnersService {
     return data as PartnerProfile;
   }
 
+  /**
+   * Exclui um parceiro de vez: apagar o usuário em auth.users cascateia para
+   * profiles e, de lá, para task_evidence e reward_redemptions. Admins não
+   * podem ser excluídos direto — primeiro se remove o acesso de admin, o que
+   * já cobre "não se excluir" e "manter pelo menos um admin". Os arquivos de
+   * evidência no S3 ficam no bucket (a role do backend não tem DeleteObject).
+   */
+  async deletePartner(actorId: string, targetId: string): Promise<void> {
+    if (targetId === actorId) {
+      throw new BadRequestException('Você não pode excluir sua própria conta');
+    }
+
+    const target = await this.getProfile(targetId);
+    if (target.role === 'admin') {
+      throw new BadRequestException(
+        'Remova o acesso de administrador antes de excluir este usuário',
+      );
+    }
+
+    const client = this.supabaseService.getClient();
+
+    // reviewed_by não tem ON DELETE: se este usuário já revisou algo quando
+    // era admin, a FK bloquearia o delete. Solta a referência antes.
+    for (const table of ['task_evidence', 'reward_redemptions']) {
+      const { error } = await client
+        .from(table)
+        .update({ reviewed_by: null })
+        .eq('reviewed_by', targetId);
+      if (error) {
+        throw new InternalServerErrorException(error.message);
+      }
+    }
+
+    const { error } = await client.auth.admin.deleteUser(targetId);
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    this.logger.log(
+      `Parceiro ${targetId} (${target.email}) excluído por ${actorId}`,
+    );
+  }
+
   private async notifyAdminAccessGranted(
     admin: PartnerProfile,
     actorId: string,
