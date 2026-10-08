@@ -15,6 +15,11 @@ export type RedemptionEmailStatus = 'approved' | 'rejected' | 'fulfilled';
 export interface RedemptionStatusEmailParams {
   partnerName: string | null;
   rewardTitle: string;
+  /**
+   * Foto de la recompensa (URL absoluta); null oculta la columna de la foto y
+   * las tarjetas ocupan todo el ancho.
+   */
+  rewardImageUrl: string | null;
   status: RedemptionEmailStatus;
   /** Nota libre del admin; null oculta el bloque. */
   adminNote: string | null;
@@ -23,48 +28,34 @@ export interface RedemptionStatusEmailParams {
   assetsBaseUrl: string;
 }
 
-const COPY: Record<
-  RedemptionEmailStatus,
+// Un único diseño para los tres estados (solo cambian el asunto y el valor de
+// "Status"). "A caminho" no va acá: el envío se informa con "Entregue".
+const COPY: Record<RedemptionEmailStatus, { subject: string; label: string }> =
   {
-    subject: string;
-    title: string;
-    highlight: string;
-    text: string;
-    hero: string;
-    heroAlt: string;
-  }
-> = {
-  approved: {
-    subject: 'Seu resgate foi aprovado',
-    title: 'Resgate',
-    highlight: 'aprovado!',
-    text: 'Sua solicitação foi aprovada e seu brinde está a caminho! Ele já está em preparação para envio.',
-    hero: 'redemption-approved-hero.png',
-    heroAlt: 'Kaspersky Partner Quest — Seu resgate foi aprovado.',
-  },
-  fulfilled: {
-    subject: 'Sua recompensa foi entregue',
-    title: 'Recompensa',
-    highlight: 'entregue!',
-    text: 'Sua recompensa foi marcada como entregue. Esperamos que você aproveite!',
-    hero: 'redemption-delivered-hero.png',
-    heroAlt: 'Kaspersky Partner Quest — Sua recompensa foi entregue.',
-  },
-  rejected: {
-    subject: 'Sua solicitação de resgate não foi aprovada',
-    title: 'Resgate',
-    highlight: 'não aprovado',
-    text: 'Sua solicitação de resgate não foi aprovada. Se tiver dúvidas, fale com a equipe do programa.',
-    hero: 'redemption-rejected-hero.png',
-    heroAlt:
-      'Kaspersky Partner Quest — Sua solicitação de resgate não foi aprovada.',
-  },
-};
+    approved: { subject: 'Seu resgate foi aprovado', label: 'Aprovada' },
+    rejected: {
+      subject: 'Sua solicitação de resgate não foi aprovada',
+      label: 'Rejeitada',
+    },
+    fulfilled: { subject: 'Sua recompensa foi entregue', label: 'Entregue' },
+  };
+
+/** Tarjeta gris "etiqueta + valor" (Recompensa / Status). */
+function infoCard(label: string, value: string, marginBottom: number): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 ${marginBottom}px 0;">
+                      <tr>
+                        <td style="padding:22px 24px;background-color:#EEF2F5;border-radius:12px;font-family:${BRAND.bodyFont};font-size:15px;line-height:21px;color:${BRAND.text};">
+                          ${label}<br /><strong style="font-size:18px;line-height:26px;">${escapeHtml(value)}</strong>
+                        </td>
+                      </tr>
+                    </table>`;
+}
 
 /** Aviso al partner cuando un admin cambia el estado de su canje. */
 export function redemptionStatusEmail({
   partnerName,
   rewardTitle,
+  rewardImageUrl,
   status,
   adminNote,
   ctaUrl,
@@ -77,16 +68,40 @@ export function redemptionStatusEmail({
               ${renderHighlight(escapeHtml(adminNote).replace(/\n/g, '<br />'))}`
     : '';
 
-  const body = `<h1 class="h1" style="${STYLES.h1}">
-                ${copy.title} <span style="color:${BRAND.teal};">${copy.highlight}</span>
-              </h1>
-              <p style="${STYLES.p}">${greeting}</p>
-              ${renderHighlight(`Recompensa: <strong>${escapeHtml(rewardTitle)}</strong>`)}
-              <p style="${STYLES.p}">${copy.text}</p>
-              ${note}
+  const cards = `${infoCard('Recompensa:', rewardTitle, 10)}
+                    ${infoCard('Status:', copy.label, 0)}`;
+  // Foto a la izquierda y tarjetas a la derecha; en mobile se apilan (.stack).
+  const details = rewardImageUrl
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px 0;">
+                <tr>
+                  <td class="stack" width="180" style="width:180px;padding:0 10px 0 0;vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" style="padding:16px;background-color:#F5F5F5;border-radius:12px;">
+                          <img src="${escapeHtml(rewardImageUrl)}" width="148" alt="${escapeHtml(rewardTitle)}" style="display:block;width:100%;max-width:148px;height:auto;border:0;font-family:${BRAND.bodyFont};font-size:14px;color:${BRAND.muted};" />
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="stack" style="vertical-align:top;">
+                    ${cards}
+                  </td>
+                </tr>
+              </table>`
+    : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px 0;">
+                <tr><td>
+                    ${cards}
+                </td></tr>
+              </table>`;
 
-              <div style="height:8px;line-height:8px;font-size:1px;">&nbsp;</div>
-              ${renderButton(ctaUrl, 'Ver minhas recompensas')}
+  const body = `<h1 class="h1" style="${STYLES.h1}">
+                Atualização <span style="color:${BRAND.teal};">da sua recompensa</span>
+              </h1>
+              <p style="margin:0 0 28px 0;font-size:16px;line-height:24px;color:${BRAND.text};"><strong>${greeting}</strong><br />Sua solicitação de recompensa teve uma atualização de status:</p>
+              ${details}
+              ${note}
+              <p style="${STYLES.p}">Acompanhe os detalhes do seu pedido direto na plataforma.</p>
+              ${renderButton(ctaUrl, 'Acessar o Kaspersky Partner Quest')}
 
               <div style="height:36px;line-height:36px;font-size:1px;">&nbsp;</div>
               ${SIGNOFF}`;
@@ -94,8 +109,13 @@ export function redemptionStatusEmail({
   return {
     subject: `${copy.subject}: ${rewardTitle}`,
     html: renderLayout({
-      preheader: `${copy.subject}: ${rewardTitle}.`,
-      header: renderHero(assetsBaseUrl, { file: copy.hero, alt: copy.heroAlt }),
+      preheader: `Sua solicitação de recompensa teve uma atualização: ${rewardTitle} — ${copy.label}.`,
+      header: renderHero(assetsBaseUrl, {
+        // Los tres heroes redemption-*-hero.png son la misma imagen ("Sua
+        // solicitação de recompensa teve uma atualização").
+        file: 'redemption-approved-hero.png',
+        alt: 'Kaspersky Partner Quest — Sua solicitação de recompensa teve uma atualização.',
+      }),
       body,
       assetsBaseUrl,
     }),

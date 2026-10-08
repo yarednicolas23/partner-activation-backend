@@ -427,6 +427,10 @@ export class RewardsService {
     const { subject, html } = redemptionStatusEmail({
       partnerName: redemption.partner.full_name,
       rewardTitle: redemption.reward.title,
+      rewardImageUrl: await this.rewardEmailImageUrl(
+        redemption.reward,
+        frontendUrl,
+      ),
       status: redemption.status,
       adminNote: redemption.admin_note,
       ctaUrl: `${frontendUrl}/dashboard/rewards`,
@@ -454,6 +458,23 @@ export class RewardsService {
    * Aviso a todos los admins: al solicitar (para revisarlo sin tener que
    * entrar al sistema) y al aprobar (datos de envío + nota de aprobación).
    */
+  /**
+   * Foto de la recompensa para un email: la subida a S3 tiene prioridad (como
+   * en withImageUrl); la estática de frontend/public/rewards se hace absoluta.
+   */
+  private async rewardEmailImageUrl(
+    reward: Pick<Reward, 'image_key' | 'image_url'>,
+    frontendUrl: string,
+  ): Promise<string | null> {
+    if (reward.image_key) {
+      return this.s3Service.getSignedEmailUrl(reward.image_key);
+    }
+    if (reward.image_url?.startsWith('/')) {
+      return `${frontendUrl}${reward.image_url}`;
+    }
+    return reward.image_url;
+  }
+
   private async notifyAdminsOfRedemption(
     redemptionId: string,
     event: 'requested' | 'approved',

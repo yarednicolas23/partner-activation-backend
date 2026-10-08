@@ -12,6 +12,7 @@ import {
   programCompletedAdminEmail,
   programCompletedEmail,
   redemptionAdminEmail,
+  redemptionStatusEmail,
   evidenceApprovedEmail,
   evidenceReceivedEmail,
   evidenceReviewEmail,
@@ -99,6 +100,23 @@ const previews = {
     ctaUrl: 'http://localhost:3000/admin/partners/preview',
     assetsBaseUrl,
   }),
+  ...Object.fromEntries(
+    (['approved', 'rejected', 'fulfilled'] as const).map((status) => [
+      `redemption-${status}`,
+      redemptionStatusEmail({
+        partnerName: 'Maria Silva',
+        rewardTitle: 'Kit Premium Onboarding',
+        rewardImageUrl: `${assetsBaseUrl.replace(/\/emails$/, '')}/rewards/kit_onboarding.png`,
+        status,
+        adminNote:
+          status === 'rejected'
+            ? 'Endereço de entrega incompleto. Atualize seu perfil e solicite novamente.'
+            : null,
+        ctaUrl: 'http://localhost:3000/dashboard/rewards',
+        assetsBaseUrl,
+      }),
+    ]),
+  ),
   'redemption-requested-admin': redemptionAdminEmail({
     event: 'requested',
     adminNote: null,

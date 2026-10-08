@@ -92,4 +92,16 @@ export class S3Service {
       signingDate,
     });
   }
+
+  /**
+   * URL para <img> de un email: dura el máximo que permite SigV4 (7 días),
+   * porque el correo se abre mucho después de enviado. Gmail cachea la imagen
+   * en su proxy al primer abrir; pasado el plazo, se ve el alt (título).
+   */
+  async getSignedEmailUrl(key: string): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    return getSignedUrl(this.client, command, {
+      expiresIn: 7 * 24 * 60 * 60,
+    });
+  }
 }

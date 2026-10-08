@@ -212,6 +212,7 @@ export function renderLayout({
       .h1 { font-size: 22px !important; line-height: 28px !important; }
       .btn a { font-size: 16px !important; padding-left: 16px !important; padding-right: 16px !important; }
       .hide-mobile { display: none !important; }
+      .stack { display: block !important; width: 100% !important; padding: 0 0 10px 0 !important; }
     }
   </style>
 </head>
