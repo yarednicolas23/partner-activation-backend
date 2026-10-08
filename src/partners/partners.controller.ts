@@ -92,6 +92,13 @@ export class PartnersController {
     return this.partnersService.deletePartner(user.id, id);
   }
 
+  @Get(':id/access')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  getPartnerAccess(@Param('id', ParseUUIDPipe) id: string) {
+    return this.partnersService.getPartnerAccess(id);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)

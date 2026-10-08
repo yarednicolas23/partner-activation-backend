@@ -104,6 +104,13 @@ export class RewardsController {
     return this.rewardsService.listRedemptionQueue(status);
   }
 
+  @Get('admin/partners/:partnerId/redemptions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  listPartnerRedemptions(@Param('partnerId', ParseUUIDPipe) partnerId: string) {
+    return this.rewardsService.listMyRedemptions(partnerId);
+  }
+
   @Patch('admin/redemptions/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)

@@ -64,3 +64,17 @@ export function shippingAddressFromProfile(
     state,
   };
 }
+
+/**
+ * Acessos do parceiro para o histórico do admin (auth.users + profiles).
+ * Só guarda o primeiro e o último login, não cada acesso.
+ */
+export interface PartnerAccess {
+  /** Quando a Kaspersky pré-cadastrou o parceiro (profiles.created_at). */
+  invited_at: string;
+  /** Primeiro login pelo link de acesso (confirmação do e-mail). */
+  first_sign_in_at: string | null;
+  last_sign_in_at: string | null;
+  /** Último lembrete de inatividade enviado (só o último é guardado). */
+  reminded_at: string | null;
+}

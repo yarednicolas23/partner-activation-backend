@@ -20,7 +20,7 @@ import {
 } from '../email/templates';
 import { CreatePartnerDto } from './dto/create-partner.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { PartnerProfile } from './partner-profile.interface';
+import { PartnerAccess, PartnerProfile } from './partner-profile.interface';
 
 /**
  * Pre-registro de partners (brief §3 "Onboarding"): Kaspersky pre-registra
@@ -442,5 +442,29 @@ export class PartnersService {
     }
 
     return data as PartnerProfile;
+  }
+
+  async getPartnerAccess(partnerId: string): Promise<PartnerAccess> {
+    const client = this.supabaseService.getClient();
+    const [{ data: profile, error: profileError }, { data: auth }] =
+      await Promise.all([
+        client
+          .from('profiles')
+          .select('created_at, reminded_at')
+          .eq('id', partnerId)
+          .single(),
+        client.auth.admin.getUserById(partnerId),
+      ]);
+
+    if (profileError || !profile) {
+      throw new NotFoundException('Perfil no encontrado');
+    }
+
+    return {
+      invited_at: profile.created_at,
+      first_sign_in_at: auth.user?.email_confirmed_at ?? null,
+      last_sign_in_at: auth.user?.last_sign_in_at ?? null,
+      reminded_at: profile.reminded_at,
+    };
   }
 }
