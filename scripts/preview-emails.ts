@@ -80,7 +80,9 @@ const previews = {
   'program-completed': programCompletedEmail({
     partnerName: 'Maria Silva',
     stageCount: 5,
+    rewardTitles: ['Kindle'],
     ctaUrl: 'http://localhost:3000/dashboard',
+    rewardsUrl: 'http://localhost:3000/dashboard/rewards',
     assetsBaseUrl,
   }),
   'evidence-approved': evidenceApprovedEmail({

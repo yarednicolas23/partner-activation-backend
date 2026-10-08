@@ -614,8 +614,22 @@ export class MilestonesService {
     partnerId: string,
     milestones: Milestone[],
   ) {
-    const { partnerEmail, partnerName, partnerCompany, adminEmails } =
-      await this.getNotificationRecipients(partnerId);
+    // Este email reemplaza al de "etapa concluída" de la última etapa, así que
+    // también avisa que su brinde está disponible para resgate.
+    const lastMilestone = milestones.reduce((a, b) =>
+      b.order_index > a.order_index ? b : a,
+    );
+    const [
+      { partnerEmail, partnerName, partnerCompany, adminEmails },
+      { data: rewards },
+    ] = await Promise.all([
+      this.getNotificationRecipients(partnerId),
+      this.client
+        .from('rewards')
+        .select('title')
+        .eq('milestone_id', lastMilestone.id)
+        .eq('is_active', true),
+    ]);
     const frontendUrl = this.configService.get<string>('frontendUrl');
     const assetsBaseUrl = this.configService.get<string>('emailAssetsUrl');
 
@@ -623,7 +637,11 @@ export class MilestonesService {
       const { subject, html } = programCompletedEmail({
         partnerName,
         stageCount: milestones.length,
+        rewardTitles: ((rewards ?? []) as { title: string }[]).map(
+          (r) => r.title,
+        ),
         ctaUrl: `${frontendUrl}/dashboard`,
+        rewardsUrl: `${frontendUrl}/dashboard/rewards`,
         assetsBaseUrl,
       });
       await this.emailService.send({ to: [partnerEmail], subject, html });
