@@ -13,6 +13,7 @@ import {
   programCompletedEmail,
   redemptionAdminEmail,
   redemptionStatusEmail,
+  reminderEmail,
   evidenceApprovedEmail,
   evidenceReceivedEmail,
   evidenceReviewEmail,
@@ -28,6 +29,12 @@ const outDir = join(__dirname, '..', 'email-previews');
 const previews = {
   welcome: welcomeEmail({
     ctaUrl: 'http://localhost:3000/login',
+    assetsBaseUrl,
+  }),
+  reminder: reminderEmail({
+    partnerName: 'Maria',
+    pendingCount: 3,
+    ctaUrl: 'http://localhost:3000/dashboard',
     assetsBaseUrl,
   }),
   'access-link': accessLinkEmail({
