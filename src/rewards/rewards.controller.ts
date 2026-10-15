@@ -111,6 +111,13 @@ export class RewardsController {
     return this.rewardsService.listMyRedemptions(partnerId);
   }
 
+  @Get('admin/redemptions/:id/history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  listRedemptionHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.rewardsService.listRedemptionHistory(id);
+  }
+
   @Patch('admin/redemptions/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)

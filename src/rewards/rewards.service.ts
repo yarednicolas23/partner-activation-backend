@@ -20,6 +20,7 @@ import { REWARD_IMAGE_CONTENT_TYPES, S3Service } from '../aws/s3.service';
 import { CreateRewardDto } from './dto/create-reward.dto';
 import { UpdateRewardDto } from './dto/update-reward.dto';
 import {
+  RedemptionEvent,
   RedemptionQueueItem,
   RedemptionStatus,
   Reward,
@@ -271,6 +272,7 @@ export class RewardsService {
     if (!redemption) {
       throw new InternalServerErrorException('Não foi possível solicitar');
     }
+    await this.recordEvent(redemption.id, 'pending', partnerId);
 
     this.notifyAdminsOfRedemption(redemption.id, 'requested').catch((err) =>
       this.logger.error(
@@ -402,6 +404,7 @@ export class RewardsService {
     }
 
     const [redemption] = this.mapRedemptionRows([data]);
+    await this.recordEvent(id, status, adminId, note);
     this.notifyRedemptionStatusChanged(redemption).catch((error) =>
       this.logger.error(
         `Falha ao notificar mudança de status de resgate: ${(error as Error).message}`,
@@ -409,6 +412,52 @@ export class RewardsService {
     );
 
     return redemption;
+  }
+
+  /**
+   * Histórico de uma solicitação, do mais antigo ao mais recente. Os status
+   * em reward_redemptions são sobrescritos a cada revisão; o seguimento da
+   * entrega vem de reward_redemption_events.
+   */
+  async listRedemptionHistory(id: string): Promise<RedemptionEvent[]> {
+    const { data, error } = await this.client
+      .from('reward_redemption_events')
+      .select(
+        `id, status, note, created_at,
+         actor:profiles!reward_redemption_events_actor_id_fkey(full_name, email, role)`,
+      )
+      .eq('redemption_id', id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    return (data ?? []) as unknown as RedemptionEvent[];
+  }
+
+  /**
+   * Registra um passo no histórico. Uma falha aqui não desfaz a mudança de
+   * status (que já foi gravada) — só fica registrada no log.
+   */
+  private async recordEvent(
+    redemptionId: string,
+    status: RedemptionStatus,
+    actorId: string,
+    note?: string,
+  ) {
+    const { error } = await this.client
+      .from('reward_redemption_events')
+      .insert({
+        redemption_id: redemptionId,
+        status,
+        note: note ?? null,
+        actor_id: actorId,
+      });
+    if (error) {
+      this.logger.error(
+        `Falha ao registrar histórico do resgate ${redemptionId}: ${error.message}`,
+      );
+    }
   }
 
   private async notifyRedemptionStatusChanged(redemption: RedemptionQueueItem) {

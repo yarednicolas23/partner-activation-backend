@@ -36,6 +36,15 @@ export interface RewardRedemption {
   shipping_address: ShippingAddress | null;
 }
 
+/** Un cambio de estado de una solicitud (reward_redemption_events). */
+export interface RedemptionEvent {
+  id: string;
+  status: RedemptionStatus;
+  note: string | null;
+  created_at: string;
+  actor: { full_name: string | null; email: string; role: string } | null;
+}
+
 export interface RedemptionQueueItem extends RewardRedemption {
   reward: Reward;
   partner: {
