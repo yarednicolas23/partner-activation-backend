@@ -436,6 +436,33 @@ export class RewardsService {
   }
 
   /**
+   * Histórico de uma solicitação do próprio parceiro (seguimento da entrega).
+   * Não expõe qual admin fez cada mudança: para o parceiro, as revisões são
+   * da equipe Kaspersky.
+   */
+  async listMyRedemptionHistory(
+    partnerId: string,
+    id: string,
+  ): Promise<RedemptionEvent[]> {
+    const { data: own, error } = await this.client
+      .from('reward_redemptions')
+      .select('id')
+      .eq('id', id)
+      .eq('partner_id', partnerId)
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+    if (!own) {
+      throw new NotFoundException('Solicitação não encontrada');
+    }
+
+    const events = await this.listRedemptionHistory(id);
+    return events.map((event) => ({ ...event, actor: null }));
+  }
+
+  /**
    * Registra um passo no histórico. Uma falha aqui não desfaz a mudança de
    * status (que já foi gravada) — só fica registrada no log.
    */

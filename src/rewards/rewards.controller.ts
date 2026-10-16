@@ -97,6 +97,15 @@ export class RewardsController {
     return this.rewardsService.listMyRedemptions(user.id);
   }
 
+  @Get('redemptions/:id/history')
+  @UseGuards(JwtAuthGuard)
+  listMyRedemptionHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.rewardsService.listMyRedemptionHistory(user.id, id);
+  }
+
   @Get('admin/redemptions')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
