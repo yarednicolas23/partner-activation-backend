@@ -66,7 +66,7 @@ variable "resend_from_email" {
 variable "frontend_url" {
   description = "URL pública del frontend de este entorno — usada para redirectTo de invitaciones y links en los emails de notificación (ver backend/src/email)."
   type        = string
-  default     = "https://partner-activation-frontend-production.up.railway.app"
+  default     = "https://www.kp-quest.com"
 }
 
 variable "evidence_bucket_cors_origins" {
@@ -74,6 +74,7 @@ variable "evidence_bucket_cors_origins" {
   type        = list(string)
   default = [
     "http://localhost:3000",
-    "https://partner-activation-frontend-production.up.railway.app",
+    "https://www.kp-quest.com",
+    "https://kp-quest.com",
   ]
 }
