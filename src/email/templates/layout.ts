@@ -188,7 +188,7 @@ export function renderLayout({
   assetsBaseUrl,
 }: LayoutParams): string {
   const socialIcons = SOCIAL_LINKS.map(
-    (s) => `<td style="padding:0 10px;">
+    (s, i) => `<td style="padding:0 ${i === SOCIAL_LINKS.length - 1 ? 0 : 20}px 0 0;">
                 <a href="${s.url}" target="_blank" style="text-decoration:none;">
                   <img src="${assetsBaseUrl}/icons/${s.icon}.png" width="24" height="24" alt="${s.name}" style="display:block;border:0;outline:none;" />
                 </a>
@@ -230,7 +230,7 @@ export function renderLayout({
             </td>
           </tr>
           <tr>
-            <td class="px" style="padding:32px 48px 40px 48px;border-top:1px solid ${BRAND.border};">
+            <td class="px" style="padding:32px 48px 0 48px;border-top:1px solid ${BRAND.border};">
               <!-- Dos tablas align="left": lado a lado en escritorio y una debajo
                    de la otra cuando no entran (celular), sin depender de media
                    queries. Antes, con nowrap en una sola fila, el pie forzaba
@@ -240,11 +240,18 @@ export function renderLayout({
                   <td style="padding:0 30px 12px 0;font-family:${BRAND.bodyFont};font-size:18px;line-height:24px;color:${BRAND.muted};white-space:nowrap;">Siga a Kaspersky:</td>
                 </tr>
               </table>
-              <table role="presentation" align="left" cellpadding="0" cellspacing="0" border="0" style="margin-left:-10px;">
+              <table role="presentation" align="left" cellpadding="0" cellspacing="0" border="0">
                 <tr>${socialIcons}</tr>
               </table>
-              <div style="clear:both;line-height:0;font-size:0;">&nbsp;</div>
-              <img src="${assetsBaseUrl}/kaspersky-logo.png" width="180" height="37" alt="Kaspersky" style="display:block;border:0;margin-top:36px;" />
+            </td>
+          </tr>
+          <!-- El logo va en su propia fila: si quedaba en la misma celda que las
+               tablas flotantes, los clientes que ignoran clear/márgenes
+               negativos (Outlook, algunos Gmail) lo tapaban con el bloque de
+               "Siga a Kaspersky". -->
+          <tr>
+            <td class="px" style="padding:24px 48px 40px 48px;">
+              <img src="${assetsBaseUrl}/kaspersky-logo.png" width="180" height="37" alt="Kaspersky" style="display:block;border:0;" />
             </td>
           </tr>
         </table>
