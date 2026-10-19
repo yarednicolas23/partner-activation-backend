@@ -44,20 +44,20 @@ set title = v.title,
 from (values
   ('026808f6-fb67-4ada-bc15-98cef8a54118'::uuid, 1, 'Kit Premium Onboarding',
    'Kit premium de boas-vindas ao Kaspersky Partner Quest.',
-   '/rewards/kit-premium-onboarding.png'),
+   '/rewards/kit_onboarding.png'),
   ('e897cc52-e723-4423-a414-667479f21d77'::uuid, 2, 'Caneca de cerâmica + Case Tecnológico',
    'Caneca de cerâmica Kaspersky e case tecnológico para acessórios.',
-   '/rewards/caneca-case-tecnologico.png'),
+   '/rewards/caneca.png'),
   ('b51b2cf2-979e-4a8a-b532-eeedfeace632'::uuid, 3, 'Lunchbox Samsonite',
    'Lunchbox Samsonite.',
-   '/rewards/lunchbox-samsonite.png'),
+   '/rewards/lunchbox.png'),
   -- El fone estaba en la Etapa 5: pasa a la 4 (quien ya lo pidió completó la 4).
   ('a7e5d293-b305-4c48-afb9-a22be3e45198'::uuid, 4, 'Fone de Ouvido',
    'Fone de ouvido sem fio.',
-   '/rewards/fone-de-ouvido.png'),
+   '/rewards/fone.jpg'),
   ('ac4b366e-c421-4e2d-a64e-ee6868282d0e'::uuid, 5, 'Kindle',
    'Leitor digital Kindle.',
-   '/rewards/kindle.png')
+   '/rewards/kindle.webp')
 ) as v(id, stage, title, description, image_url)
 join public.milestones m on m.order_index = v.stage
 where r.id = v.id;
