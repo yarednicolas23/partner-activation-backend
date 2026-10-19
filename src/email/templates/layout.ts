@@ -32,7 +32,7 @@ const SOCIAL_LINKS = [
   {
     name: 'LinkedIn',
     icon: 'linkedin',
-    url: 'https://www.linkedin.com/company/kaspersky-lab',
+    url: 'https://www.linkedin.com/showcase/kaspersky-brasil/home/',
   },
   {
     name: 'Instagram',
