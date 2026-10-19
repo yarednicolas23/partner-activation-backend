@@ -148,7 +148,7 @@ from public.milestones m,
    '[
      {"key": "social_media", "label": "Social Media", "evidence_type": "url", "evidence_label": "Link da publicação."},
      {"key": "email_marketing", "label": "E-mail Marketing", "evidence_type": "file", "evidence_label": "Peça/arquivo do e-mail marketing enviado."},
-     {"key": "press_release", "label": "Press Release", "evidence_type": "url", "evidence_label": "Link do press release publicado."},
+     {"key": "press_release", "label": "Press Release", "evidence_type": "file", "evidence_label": "Arquivo do press release publicado (PDF, JPG ou PNG)."},
      {"key": "blog_post", "label": "Blog Post", "evidence_type": "url", "evidence_label": "Link do blog post publicado."},
      {"key": "site", "label": "Site próprio", "evidence_type": "url", "evidence_label": "Link da página do site."}
    ]'),
@@ -170,7 +170,7 @@ from public.milestones m,
      {"key": "outbound_email", "label": "Prospecção Outbound — E-mail", "evidence_type": "file", "evidence_label": "Captura de tela do e-mail + lista de contatos, em um único PDF."},
      {"key": "social_selling", "label": "Social Selling (posts fornecidos pela Kaspersky)", "evidence_type": "file", "evidence_label": "Captura de tela + links dos posts publicados, em um único PDF."},
      {"key": "potential_clients", "label": "Identificação de 5 clientes potenciais", "evidence_type": "file", "evidence_label": "Lista de clientes + plano de negócio (business plan) por cliente, em um único PDF."},
-     {"key": "sales_blitz", "label": "Blitz interna de vendas (KUDOS pode ser usado)", "evidence_type": "file", "evidence_label": "Plano da blitz + lista de contatos + capturas de tela do material de apoio, em um único PDF."}
+     {"key": "sales_blitz", "label": "Blitz interna de vendas", "evidence_type": "file", "evidence_label": "Plano da blitz + lista de contatos + capturas de tela do material de apoio, em um único PDF."}
    ]'),
 
   -- Etapa 4 — Prospecção
