@@ -11,6 +11,7 @@ import { MilestonesModule } from './milestones/milestones.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { StatsModule } from './stats/stats.module';
+import { DeadlinesModule } from './deadlines/deadlines.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { StatsModule } from './stats/stats.module';
     RewardsModule,
     RemindersModule,
     StatsModule,
+    DeadlinesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
